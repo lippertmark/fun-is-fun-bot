@@ -1,0 +1,4 @@
+aiogram
+python-i18n
+SQLAlchemy
+asyncpg
