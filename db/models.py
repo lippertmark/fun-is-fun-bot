@@ -6,27 +6,27 @@ BaseModel = declarative_base()
 
 class UserClient(BaseModel):
     __tablename__ = "user_client"
-    tg_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    tg_id = Column(Integer, index=True)
     name = Column(Text)
     surname = Column(Text)
     created_datetime = Column(DateTime)
-    state = Column(Text)
 
 
 class UserAdmin(BaseModel):
     __tablename__ = "user_admin"
-    tg_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    tg_id = Column(Integer, index=True)
     name = Column(Text)
     surname = Column(Text)
     email = Column(Text)
     created_datetime = Column(DateTime)
-    state = Column(Text)
 
 
 class Subscription(BaseModel):
     __tablename__ = "subscription"
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    user = Column(Integer, ForeignKey("user_client.tg_id"))
+    user = Column(Integer)
     type = Column(Text)
     sport_club = Column(Integer, ForeignKey("sport_club.id"))
 
@@ -67,7 +67,7 @@ class Event(BaseModel):
     duration = Column(Integer)
     max_amount_of_people = Column(Integer)
     created_datetime = Column(DateTime)
-    created_id = Column(Integer, ForeignKey("user_admin.tg_id"))
+    created_id = Column(Integer)
     telegram_group_id = Column(Text)
     telegram_group_invitation_link = Column(Text)
 
@@ -75,30 +75,34 @@ class Event(BaseModel):
 class BookingEvent(BaseModel):
     __tablename__ = "booking_event"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user_client.tg_id"))
+    user_id = Column(Integer)
     event_id = Column(Integer, ForeignKey("event.id"))
     booking_datetime = Column(DateTime)
 
 
 class AiogramStateAdmins(BaseModel):
     __tablename__ = "aiogram_state_admins"
-    user_id = Column(Integer, ForeignKey("user_admin.tg_id"), primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
     state = Column(Text)
 
 
 class AiogramDataAdmins(BaseModel):
     __tablename__ = "aiogram_data_admins"
-    user_id = Column(Integer, ForeignKey("user_admin.tg_id"), primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
     data = Column(Text)
 
 
 class AiogramStateClients(BaseModel):
     __tablename__ = "aiogram_state_clients"
-    user_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
     state = Column(Text)
 
 
 class AiogramDataClients(BaseModel):
     __tablename__ = "aiogram_data_clients"
-    user_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
     data = Column(Text)

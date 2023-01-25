@@ -38,8 +38,6 @@ class Storage(BaseStorage):
                         default: typing.Optional[str] = None) -> typing.Optional[str]:
         """
         Get current state of user in chat. Return `default` if no record is found.
-        Chat or user is always required. If one of them is not provided,
-        you have to set missing value based on the provided one.
 
         :param chat:
         :param user:
@@ -64,8 +62,6 @@ class Storage(BaseStorage):
                        default: typing.Optional[typing.Dict] = None) -> typing.Dict:
         """
         Get state-data for user in chat. Return `default` if no data is provided in storage.
-        Chat or user is always required. If one of them is not provided,
-        you have to set missing value based on the provided one.
 
         :param chat:
         :param user:
@@ -90,8 +86,6 @@ class Storage(BaseStorage):
                         state: typing.Optional[typing.AnyStr] = None):
         """
         Set new state for user in chat.
-        Chat or user is always required. If one of them is not provided,
-        you have to set missing value based on the provided one.
 
         :param chat:
         :param user:
@@ -117,8 +111,6 @@ class Storage(BaseStorage):
                        data: typing.Dict = None):
         """
         Set data for user in chat.
-        Chat or user is always required. If one of them is not provided,
-        you have to set missing value based on the provided one.
 
         :param chat:
         :param user:
@@ -146,8 +138,6 @@ class Storage(BaseStorage):
         """
         Update data for user in chat
         You can use data parameter or|and kwargs.
-        Chat or user is always required. If one of them is not provided,
-        you have to set missing value based on the provided one.
 
         :param data:
         :param chat:
@@ -160,12 +150,10 @@ class Storage(BaseStorage):
         if data is None:
             data = {}
 
-        async with self._session_maker() as session:
-            async with session.begin():
-                current_data = await session.execute(select(self._data.data).where(self._data.user_id == user))
-                current_data = current_data.one_or_none().data
-                current_data.update(data, **kwargs)
-                await self.set_data(chat=chat, user=user, data=current_data)
+        current_data = await self.get_data(chat=chat, user=user, default={})
+
+        current_data.update(data, **kwargs)
+        await self.set_data(chat=chat, user=user, data=current_data)
 
     async def close(self):
         """

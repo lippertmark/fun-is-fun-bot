@@ -1,25 +1,25 @@
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
-from .models import *
+from db.models import BaseModel
 from config import *
 import asyncio
 
 
-def new_async_engine(url: [URL | str]) -> AsyncEngine:
+def new_async_engine(url: [URL | str], echo: bool = False) -> AsyncEngine:
     """
-    Create instance of async engine.
-    The only parameter is URL to database.
+    Create an instance of async engine by url.
 
     :param url:
+    :param echo:
     :return:
     """
-    return create_async_engine(url=url, encoding="UTF-8", echo=True, pool_pre_ping=True)
+    return create_async_engine(url=url, encoding="UTF-8", echo=echo, pool_pre_ping=True)
 
 
 def new_session_maker(engine: AsyncEngine) -> sessionmaker:
     """
-    Create instance of sessionmaker for async engine.
+    Create an instance of sessionmaker for async engine.
 
     :param engine:
     :return:
@@ -47,7 +47,6 @@ if __name__ == '__main__':
                         port=DB_PORT,
                         username=DB_USERNAME,
                         password=DB_PASSWORD,
-                        database=DB_NAME
-                        )
+                        database=DB_NAME)
     async_engine = new_async_engine(db_url)
     asyncio.run(initialize_schemas(async_engine))
