@@ -1,5 +1,5 @@
-from admin_core.handlers.registration import reg_admin_menu_handlers
-from admin_core.middlewares.sessionmaker import DbMiddleware
+from admin_core.bot_handlers.registration import reg_admin_menu_handlers
+from admin_core.bot_middlewares.sessionmaker import DbMiddleware
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram import Bot

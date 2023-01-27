@@ -114,6 +114,7 @@ async def check_code(message: Message, sm: sessionmaker, state: FSMContext):
                 user_update = update(UserAdmin).where(UserAdmin.email == user_data['email']).values(user_info)
                 await session.execute(user_update)
         await message.reply(i18n.t('text.correct_code'))
+        await state.finish()  # to remove unnecessary data
         await state.set_state(FSMAdminMenu.main_menu.state)
 
 
@@ -131,9 +132,16 @@ async def resend_code(call: CallbackQuery, state: FSMContext):
         await call.answer(i18n.t('text.resend_code_timeout'), show_alert=True)
     else:
         code, creation_time, expiration_time = await send_code(user_data['email'])
+        await call.answer("код отправлен")
         await state.update_data(verification_code=code,
                                 created=creation_time,
                                 expires=expiration_time)
+
+
+async def change_email(call: CallbackQuery, state: FSMContext):
+    await call.answer(i18n.t('text.request_email'))  # to avoid loading symbol on button
+    await call.message.answer(i18n.t('text.request_email'))
+    await state.set_state(FSMRegistration.email_registration.state)
 
 
 def reg_admin_menu_handlers(dp: Dispatcher) -> None:
@@ -147,4 +155,4 @@ def reg_admin_menu_handlers(dp: Dispatcher) -> None:
     dp.register_message_handler(send_verification_code, state=FSMRegistration.email_registration)
     dp.register_message_handler(check_code, state=FSMRegistration.code_confirmation)
     dp.register_callback_query_handler(resend_code, text="new_code_request", state=FSMRegistration.code_confirmation)
-    dp.register_callback_query_handler(request_email, text="change_email", state=FSMRegistration.code_confirmation)
+    dp.register_callback_query_handler(change_email, text="change_email", state=FSMRegistration.code_confirmation)
