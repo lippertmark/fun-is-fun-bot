@@ -11,7 +11,17 @@ from email.mime.text import MIMEText
 TIME_FORMAT = "%d-%m-%Y %H:%M:%S"
 
 
-async def send_letter(email: str, subject: str, html_template: str, data: Dict) -> None:
+async def send_letter(email: str, subject: str, html_template: str, data: Dict):
+    """
+    Simple email sender.
+    Replaces {{key}} in html with corresponding value from data
+
+    :param email: where to
+    :param subject: subject of the letter
+    :param html_template:
+    :param data:
+    :return:
+    """
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = EMAIL_SENDER
@@ -39,6 +49,13 @@ async def send_letter(email: str, subject: str, html_template: str, data: Dict) 
 
 
 async def send_code(email: str) -> (str, datetime, datetime):
+    """
+    Generates and sends verification code to provided email.
+    Returns code, time of creation, expiration time.
+
+    :param email:
+    :return:
+    """
     code = ''.join(str(randint(0, 9)) for _ in range(CODE_LENGTH))
     created = datetime.now()
     expires = created + timedelta(minutes=10)

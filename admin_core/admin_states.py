@@ -8,3 +8,4 @@ class FSMRegistration(StatesGroup):
 
 class FSMAdminMenu(StatesGroup):
     main_menu = State()
+    delete_event_reason = State()
