@@ -2,7 +2,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from config import WEB_APP_BASE
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 # resend verification code inline keyboard
 resend_code_btn = InlineKeyboardButton("новый код", callback_data="new_code_request")
@@ -57,7 +57,7 @@ show_orders = InlineKeyboardButton(text="Список заказов",
 shop_control_kb = InlineKeyboardMarkup(inline_keyboard=[[add_item], [show_orders]])
 
 
-async def build_inline_keyboard(items: List[Tuple[str, int | str]], page: int = 1, items_on_page=10):
+async def build_inline_keyboard(items: List[Tuple[str, Union[int, str]]], page: int = 1, items_on_page=10):
     """
     Creates n-th page of dynamic keyboard for list of items.
     If n-th page does not exist - returns empty keyboard.
@@ -98,7 +98,7 @@ async def build_inline_keyboard(items: List[Tuple[str, int | str]], page: int = 
     return kb
 
 
-async def save_new_kb_info(state: FSMContext, items: List[Tuple[str, int | str]]):
+async def save_new_kb_info(state: FSMContext, items: List[Tuple[str, Union[int, str]]]):
     """
     Adds information about freshly created dynamic keyboard into user data storage.
 

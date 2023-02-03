@@ -2,11 +2,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSessio
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
 from db.models import BaseModel
+from typing import Union
 from config import *
 import asyncio
 
 
-def new_async_engine(url: [URL | str], echo: bool = False) -> AsyncEngine:
+def new_async_engine(url: Union[URL, str], echo: bool = False) -> AsyncEngine:
     """
     Create an instance of async engine by url.
 

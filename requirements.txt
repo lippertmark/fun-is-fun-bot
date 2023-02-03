@@ -1,4 +1,4 @@
-aiogram
-python-i18n
-SQLAlchemy
-asyncpg
+aiogram==2.24
+python-i18n==0.3.9
+SQLAlchemy==1.4.46
+asyncpg==0.27.0
