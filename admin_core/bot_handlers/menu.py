@@ -7,9 +7,9 @@ from admin_core.customers import get_event_participants
 from admin_core.admin_states import FSMAdminMenu
 from admin_core import keyboards as k
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, delete, and_
+from sqlalchemy import select, delete, and_, cast, Date
 from db.models import Event, BookingEvent
-from datetime import datetime, timedelta
+from datetime import datetime
 import i18n
 
 """
@@ -99,19 +99,15 @@ async def show_event_dates(message: Message, sm: sessionmaker, state: FSMContext
 
     async with sm() as session:
         async with session.begin():
-            dates_req = select(Event.start_datetime) \
-                .where(Event.created_id == message.from_user.id) \
-                .group_by(Event.start_datetime)\
-                .order_by(Event.start_datetime.asc())
+            dates_req = select(Event.start_datetime).where(Event.created_id == message.from_user.id)
             event_dates = await session.execute(dates_req)
 
-    available_dates = {date.start_datetime.date() for date in event_dates}  # set of available dates
-    # forming kb
-    dates_kb_info = []
-    for date in available_dates:
-        date_user = date.strftime("%d.%m")
-        date_callback = date.strftime("oedates:%d.%m.%Y")  # oedates is unique identifier for this selection
-        dates_kb_info.append((date_user, date_callback))
+    # list of unique available dates
+    available_dates = list({date.start_datetime.strftime('%d.%m.%Y') for date in event_dates})
+    available_dates.sort()
+
+    # oedates is unique identifier for this selection
+    dates_kb_info = [(date, 'oedates:' + date) for date in available_dates]
 
     await k.save_new_kb_info(state, dates_kb_info)
     m = await message.answer(i18n.t('text.choose'), reply_markup=await k.build_inline_keyboard(dates_kb_info))
@@ -127,16 +123,14 @@ async def show_open_events(call: CallbackQuery, sm: sessionmaker, state: FSMCont
     :param state:
     :return:
     """
-    selected_date = datetime.strptime(call.data, "oedates:%d.%m.%Y")
+    selected_date = datetime.strptime(call.data, "oedates:%d.%m.%Y").date()
 
     # events for user on selected day
     async with sm() as session:
         async with session.begin():
             filtered_events_req = select(Event)\
                 .where(and_(Event.created_id == call.from_user.id,
-                            Event.start_datetime.between(
-                                selected_date,
-                                selected_date + timedelta(hours=23, minutes=59, seconds=59))))
+                            cast(Event.start_datetime, Date) == selected_date))
             filtered_events = await session.execute(filtered_events_req)
 
     # forming kb
