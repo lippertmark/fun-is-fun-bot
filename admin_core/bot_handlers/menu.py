@@ -27,7 +27,7 @@ async def show_menu(message: Message, sm: sessionmaker, state: FSMContext):
     :param message:
     :param sm:
     :param state:
-    :return:
+    :return: id of menu message
     """
     # checking if user already registered
     async with sm() as session:
@@ -44,6 +44,7 @@ async def show_menu(message: Message, sm: sessionmaker, state: FSMContext):
     await state.set_state(FSMAdminMenu.main_menu.state)
     m = await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)
     await state.update_data(menu_msg=m.message_id)  # to delete it when needed
+    return m.message_id
 
 
 # -------
@@ -241,7 +242,8 @@ async def confirmed_delete_event(call: CallbackQuery, sm: sessionmaker, state: F
             for participant in participants:
                 participant_id = participant.UserClient.tg_id
                 await call.bot.send_message(participant_id, msg)
-                await session.execute(delete(BookingEvent).where(BookingEvent.user_id == participant_id))
+                await session.execute(delete(BookingEvent).where(and_(BookingEvent.user_id == participant_id,
+                                                                      BookingEvent.event_id == event)))
             await session.execute(delete(Event).where(Event.id == event))
 
 
@@ -340,12 +342,14 @@ async def return_kb(call: CallbackQuery, sm: sessionmaker, state: FSMContext):
     """
     user_data = await state.get_data()
     user_data['kbs'].pop(-1)
+    await state.update_data(user_data)
 
     if not user_data['kbs']:
         # return to main menu
         await delete_msg(call.from_user.id, user_data.get("menu_msg"), call.bot)  # to resend with new menu_kb later
         await clear_io(call.from_user.id, state, call.bot)
-        await show_menu(call.message, sm, state)
+        m_id = await show_menu(call.message, sm, state)
+        await state.update_data(menu_msg=m_id)
         await call.answer("вернулись в главное меню")
     else:
         # show previous step
@@ -353,8 +357,6 @@ async def return_kb(call: CallbackQuery, sm: sessionmaker, state: FSMContext):
         kb, page = user_data['kbs'][-1]
         await call.message.edit_text(text=i18n.t('text.choose'),
                                      reply_markup=await k.build_inline_keyboard(kb, page))
-
-    await state.update_data(user_data)
 
 
 async def notify_empty_list(call: CallbackQuery):

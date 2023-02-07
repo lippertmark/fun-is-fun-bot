@@ -45,7 +45,8 @@ async def greet(message: Message, sm: sessionmaker, state: FSMContext) -> None:
         await state.reset_data()
         await state.set_state(FSMAdminMenu.main_menu.state)
         await message.answer(i18n.t('text.correct_code'))
-        await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)  # display menu
+        m = await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)  # display menu
+        await state.update_data(menu_msg=m.message_id)
 
 
 async def request_email(message: Message, state: FSMContext) -> None:

@@ -76,7 +76,7 @@ class BookingEvent(BaseModel):
     __tablename__ = "booking_event"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer)
-    event_id = Column(Integer, ForeignKey("event.id"))
+    event_id = Column(Integer)
     booking_datetime = Column(DateTime)
 
 
