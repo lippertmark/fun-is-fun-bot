@@ -2,13 +2,13 @@ from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
 from aiogram import Dispatcher
-from admin_core.chat_cleanup import clear_block, clear_io, add_trace, add_block_and_trace
+from admin_core.chat_cleanup import clear_block, clear_io, add_trace, add_block_and_trace, delete_msg
 from admin_core.customers import get_event_participants
 from admin_core.admin_states import FSMAdminMenu
 from admin_core import keyboards as k
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, delete, and_, cast, Date
-from db.models import Event, BookingEvent
+from db.models import Event, BookingEvent, UserAdmin
 from datetime import datetime
 import i18n
 
@@ -20,18 +20,30 @@ i18n.load_path.append('./admin_core')
 i18n.set('locale', 'ru')
 
 
-async def show_menu(message: Message, state: FSMContext):
+async def show_menu(message: Message, sm: sessionmaker, state: FSMContext):
     """
     Removes all unnecessary data, puts user into main_menu state, and prints menu.
 
     :param message:
+    :param sm:
     :param state:
     :return:
     """
+    # checking if user already registered
+    async with sm() as session:
+        async with session.begin():
+            # select users with sender id
+            user = await session.execute((select(UserAdmin.tg_id).where(UserAdmin.tg_id == message.chat.id)))
+            user = user.one_or_none()
+    if user is None:
+        await message.answer(i18n.t('text.unauthorised'))
+        return
+
     await clear_io(message.from_user.id, state, message.bot)
     await state.reset_data()
     await state.set_state(FSMAdminMenu.main_menu.state)
-    await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)
+    m = await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)
+    await state.update_data(menu_msg=m.message_id)  # to delete it when needed
 
 
 # -------
@@ -45,7 +57,6 @@ async def create_activity_menu(message: Message, state: FSMContext):
     :return:
     """
     await clear_io(message.from_user.id, state, message.bot)
-    await state.reset_data()
     await add_trace(message.message_id, state)
     m = await message.answer(i18n.t('text.choose'), reply_markup=k.create_activity_menu_kb)
     await add_trace(m.message_id, state)
@@ -62,7 +73,6 @@ async def show_help(message: Message, state: FSMContext):
     :return:
     """
     await clear_io(message.from_user.id, state, message.bot)
-    await state.reset_data()
     await add_trace(message.message_id, state)
     m = await message.answer(i18n.t('text.help'), reply_markup=k.call_support_kb)
     await add_trace(m.message_id, state)
@@ -94,7 +104,6 @@ async def show_event_dates(message: Message, sm: sessionmaker, state: FSMContext
     :return:
     """
     await clear_io(message.from_user.id, state, message.bot)
-    await state.reset_data()
     await add_trace(message.message_id, state)
 
     async with sm() as session:
@@ -222,8 +231,10 @@ async def confirmed_delete_event(call: CallbackQuery, sm: sessionmaker, state: F
     participants = await get_event_participants(event, sm)
 
     await state.set_state(FSMAdminMenu.main_menu.state)
+    # to resend with new menu_kb later
+    await delete_msg(call.from_user.id, user_data.get("menu_msg"), call.bot)
     await clear_io(call.from_user.id, state, call.bot)
-    await show_menu(call.message, state)
+    await show_menu(call.message, sm, state)
 
     async with sm() as session:
         async with session.begin():
@@ -257,7 +268,6 @@ async def show_statistics(message: Message, state: FSMContext):
     :return:
     """
     await clear_io(message.from_user.id, state, message.bot)
-    await state.reset_data()
     await add_trace(message.message_id, state)
     m = await message.answer(i18n.t('text.show_statistics'))
     await add_trace(m.message_id, state)
@@ -274,7 +284,6 @@ async def shop_control(message: Message, state: FSMContext):
     :return:
     """
     await clear_io(message.from_user.id, state, message.bot)
-    await state.reset_data()
     await add_trace(message.message_id, state)
     m = await message.answer(i18n.t('text.shop_control'), reply_markup=k.shop_control_kb)
     await add_trace(m.message_id, state)
@@ -320,11 +329,12 @@ async def next_page_kb(call: CallbackQuery, state: FSMContext):
     await state.update_data(user_data)
 
 
-async def return_kb(call: CallbackQuery, state: FSMContext):
+async def return_kb(call: CallbackQuery, sm: sessionmaker, state: FSMContext):
     """
     Updates message with previous step.
 
     :param call:
+    :param sm:
     :param state:
     :return:
     """
@@ -333,8 +343,9 @@ async def return_kb(call: CallbackQuery, state: FSMContext):
 
     if not user_data['kbs']:
         # return to main menu
+        await delete_msg(call.from_user.id, user_data.get("menu_msg"), call.bot)  # to resend with new menu_kb later
         await clear_io(call.from_user.id, state, call.bot)
-        await show_menu(call.message, state)
+        await show_menu(call.message, sm, state)
         await call.answer("вернулись в главное меню")
     else:
         # show previous step
@@ -365,7 +376,8 @@ def reg_menu_handlers(dp: Dispatcher):
     """
     # -------
     # user requested menu
-    dp.register_message_handler(show_menu, Text(equals="Меню", ignore_case=True), state=FSMAdminMenu.main_menu)
+    dp.register_message_handler(show_menu, Text(equals="Меню", ignore_case=True), state="*")
+    dp.register_message_handler(show_menu, commands=['menu'], state="*")
 
     # -------
     # create new event, entry button

@@ -54,6 +54,21 @@ async def clear_io(chat_id: int, state: FSMContext, bot: bot):
     await state.update_data(io_trace=[])
 
 
+async def delete_msg(chat_id: int, message_id: int, bot: bot):
+    """
+    Deletes particular message.
+
+    :param chat_id: from which chat message should be deleted
+    :param message_id: which message to delete
+    :param bot: to access delete message method
+    :return:
+    """
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except Exception as e:
+        print(e)
+
+
 async def add_trace(message_id: int, state: FSMContext):
     """
     Puts message_id into last block. If io_trace is empty, creates new one.
