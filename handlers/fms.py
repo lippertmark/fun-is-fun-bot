@@ -1,4 +1,6 @@
-from load import dp, bot
+from aiogram.types import LabeledPrice, ContentType
+
+from load import dp, bot, PAYMENT_TOKEN
 import i18n
 import datetime
 from aiogram import types
@@ -140,11 +142,11 @@ async def club_page(callback_query: types.CallbackQuery, state: FSMContext):
             await delete_last_message(state)
             data['msg'].pop()
             msg = await bot.send_message(text=i18n.t('text.subscriptions', clubname=(club_info['name']),
-                                                    base_price=club_info['base_subscription']['price'],
-                                                    standard_price=club_info['standard_subscription']['price'],
-                                                    premium_price=club_info['premium_subscription']['price']),
-                                        chat_id=callback_query.from_user.id, parse_mode="Markdown",
-                                        reply_markup=kb.subs_btn)
+                                                     base_price=club_info['base_subscription']['price'],
+                                                     standard_price=club_info['standard_subscription']['price'],
+                                                     premium_price=club_info['premium_subscription']['price']),
+                                         chat_id=callback_query.from_user.id, parse_mode="Markdown",
+                                         reply_markup=kb.subs_btn)
             data['msg'].append(msg)
         await ClientStates.buy_sub.set()
 
@@ -162,32 +164,40 @@ async def buy_sub(callback_query: types.CallbackQuery, state: FSMContext):
             data["subs"] = club_info[code]['id']
             data['sub_name'] = club_info[code]['subscription_type']
             if not int(data['club']) in get_subscribes(callback_query.from_user.id).keys():
-                await bot.edit_message_text(text=f"Оплата на сумму {club_info[code]['price']} рублей, подписка на "
-                                                 f"{get_club_name(data['club'])},"
-                                                 f" тариф {club_info[code]['subscription_type']}",
-                                            chat_id=callback_query.from_user.id,
-                                            message_id=callback_query.message.message_id,
-                                            reply_markup=kb.buy_btn)
-                await ClientStates.successfully_paid.set()
+                await bot.send_invoice(callback_query.from_user.id,
+                                       title="Оплата подписки",
+                                       description=f"Подписка {get_club_name(data['club'])} - "
+                                                   f"{club_info[code]['subscription_type']} - на месяц",
+                                       provider_token=PAYMENT_TOKEN,
+                                       currency='rub',
+                                       is_flexible=False,
+                                       prices=[LabeledPrice(
+                                           label=f"{get_club_name(data['club'])} - "
+                                                 f"{club_info[code]['subscription_type']}",
+                                           amount=club_info[code]['price'])],
+                                       start_parameter='subscription_payment',
+                                       payload='subscription_payment')
             else:
                 await bot.edit_message_text(text=f"У тебя уже есть подписка на "
-                                                 f"{get_club_name(data['club'])}, ты не может купить ее повторно",
+                                                 f"{get_club_name(data['club'])}, ты не можешь купить ее повторно",
                                             chat_id=callback_query.from_user.id,
                                             message_id=callback_query.message.message_id,
                                             reply_markup=kb.InlineKeyboardMarkup().add(kb.inl_back))
 
 
-@dp.callback_query_handler(lambda c: c.data, state=ClientStates.successfully_paid)
-async def add_subs(callback_query: types.CallbackQuery, state: FSMContext):
-    await bot.edit_message_reply_markup(chat_id=callback_query.from_user.id,
-                                        message_id=callback_query.message.message_id,
-                                        reply_markup=None)
+@dp.pre_checkout_query_handler(lambda query: True, state=ClientStates.buy_sub)
+async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+@dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT, state=ClientStates.buy_sub)
+async def process_successful_payment(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        await callback_query.message.answer(
+        await message.answer(
             text=i18n.t('text.congratulation', clubname=get_club_name(data['club'])),
             reply_markup=kb.sub_default_btn)
         for msg in data['msg']:
             await msg.delete()
         data['msg'].clear()
-        add_subscription(callback_query.from_user.id, data["subs"], data['club'])
+        add_subscription(message.from_user.id, data["subs"], data['club'])
     await state.reset_state(with_data=False)
