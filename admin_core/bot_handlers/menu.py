@@ -271,7 +271,7 @@ async def show_statistics(message: Message, state: FSMContext):
     """
     await clear_io(message.from_user.id, state, message.bot)
     await add_trace(message.message_id, state)
-    m = await message.answer(i18n.t('text.show_statistics'))
+    m = await message.answer(i18n.t('text.choose'), reply_markup=k.statistics_kb)
     await add_trace(m.message_id, state)
 
 

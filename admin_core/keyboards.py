@@ -57,6 +57,13 @@ show_orders = InlineKeyboardButton(text="Список заказов",
 shop_control_kb = InlineKeyboardMarkup(inline_keyboard=[[add_item], [show_orders]])
 
 
+# temporary statistics
+open_statistics_btn = InlineKeyboardButton(text="Открыть в отдельном окне", url="https://combot.org/c/1785291662/a")
+open_statistics_btn2 = InlineKeyboardButton(text="Открыть в этом окне",
+                                            web_app=WebAppInfo(url="https://combot.org/c/1785291662/a"))
+statistics_kb = InlineKeyboardMarkup(inline_keyboard=[[open_statistics_btn], [open_statistics_btn2]])
+
+
 async def build_inline_keyboard(items: List[Tuple[str, Union[int, str]]], page: int = 1, items_on_page=10):
     """
     Creates n-th page of dynamic keyboard for list of items.
