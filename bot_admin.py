@@ -1,5 +1,6 @@
-from admin_core.handlers.registration import reg_admin_menu_handlers
-from admin_core.middlewares.sessionmaker import DbMiddleware
+from admin_core.bot_handlers.registration import reg_admin_menu_handlers
+from admin_core.bot_handlers.menu import reg_menu_handlers
+from admin_core.bot_middlewares.sessionmaker import DbMiddleware
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram import Bot
@@ -15,7 +16,7 @@ db_url = URL.create("postgresql+asyncpg",
                     username=DB_USERNAME,
                     password=DB_PASSWORD,
                     database=DB_NAME)
-engine = new_async_engine(db_url)
+engine = new_async_engine(db_url, echo=False)
 sm = new_session_maker(engine)
 
 # bot initialization
@@ -26,6 +27,7 @@ dp = Dispatcher(bot, storage=storage)
 dp.middleware.setup(DbMiddleware(sm))  # necessary to provide handlers access to db
 # registering handlers
 reg_admin_menu_handlers(dp)
+reg_menu_handlers(dp)
 
 
 if __name__ == '__main__':
