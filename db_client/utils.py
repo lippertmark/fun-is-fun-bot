@@ -1,3 +1,4 @@
+
 import datetime
 import time
 
@@ -12,35 +13,95 @@ def create_client_user(tg_id, name, surname, username, created_datetime, state='
     local_session.commit()
 
 
+
+def create_admin_user(tg_id, name, surname, email, created_datetime, state=''):
+    local_session = Session(bind=engine)
+
+    new_user = UserAdmin(tg_id=tg_id, name=name, surname=surname, email=email, created_datetime=created_datetime, state=state)
+    local_session.add(new_user)
+    local_session.commit()
+
 def all_sport_types():
+    '''
+
+    :return: all types of sport
+    '''
     local_session = Session(bind=engine)
     sport_types = local_session.query(SportType).all()
     response = []
     for sport_type in sport_types:
-        if get_list_of_sport_clubes_by_type(sport_type.id):
+    if get_list_of_sport_clubes_by_type(sport_type.id):
             response.append([sport_type.id, sport_type.name])
     local_session.commit()
     return response
 
+def create_sport_types():
+    '''
+    you can use this method to initialize sport types
+    :return:
+    '''
+    local_session = Session(bind=engine)
+
+    football = SportType(name='Футбол')
+    hockey = SportType(name='Хоккей')
+    local_session.add(football)
+    local_session.add(hockey)
+    local_session.commit()
+
+
+def create_subscription_settings():
+    local_session = Session(bind=engine)
+    base = SubscriptionSettings(subscription_type='base', videochat=True, conference=False, offline_event=False,
+                                price=10000)
+    standart = SubscriptionSettings(subscription_type='standart', videochat=True, conference=True, offline_event=False,
+                                    price=30000)
+    premium = SubscriptionSettings(subscription_type='premium', videochat=True, conference=True, offline_event=True,
+                                   price=50000)
+    local_session.add(base)
+    local_session.add(standart)
+    local_session.add(premium)
+    local_session.commit()
+
+
+def create_sport_clubes():
+    '''
+    you can use this method to initialize sport types
+    :return:
+    '''
+    local_session = Session(bind=engine)
+
+    ak_bars = SportClub(name='Ак барс', sport_type=2, base_subscription=1, standart_subscription=2,
+                        premium_subscription=3)
+    zenit = SportClub(name='Зенит', sport_type=1, base_subscription=1, standart_subscription=2, premium_subscription=3)
+    rubin = SportClub(name='Рубин', sport_type=1, base_subscription=1, standart_subscription=2, premium_subscription=3)
+    local_session.add(ak_bars)
+    local_session.add(zenit)
+    local_session.add(rubin)
+    local_session.commit()
+
 
 def get_list_of_sport_clubes_by_type(sport_type_id):
+    '''
+    :param sport_type_id:
+    :return: list of clubs of this sport type
+    '''
     local_session = Session(bind=engine)
-    sport_clubs = local_session.query(SportClub).filter(SportClub.sport_type == sport_type_id)
+    sport_types = local_session.query(SportClub).filter(SportClub.sport_type == sport_type_id)
     response = []
-    for sport_club in sport_clubs:
-        response.append([sport_club.id, sport_club.name])
+    for sport_type in sport_types:
+        response.append([sport_type.id, sport_type.name])
     local_session.commit()
     return response
 
 
 def add_subscription(tg_id, type, sport_club_id):
-    """"
-        Add info about subscription to database
-        :param tg_id: user id
-        :param type: type of subscription
-        :param sport_club_id: id of sport club
-        :return:
-    """
+    '''
+    Add info about subscription to data base
+    :param tg_id: user id
+    :param type: type of subscription
+    :param sport_club_id: id of sport club
+    :return:
+    '''
     local_session = Session(bind=engine)
 
     new_subscription = Subscription(user=tg_id, type=type, sport_club=sport_club_id)
@@ -61,6 +122,7 @@ def get_subscribes(tg_id):
 def get_club_name(club_id):
     local_session = Session(bind=engine)
     sport_type = local_session.query(SportClub).filter(SportClub.id == club_id)
+
     local_session.commit()
     return sport_type[0].name
 
@@ -208,23 +270,15 @@ def unsubscribe(user_id, club_id):
     local_session.query(Subscription).filter(Subscription.user == user_id, Subscription.sport_club == club_id).delete()
     local_session.commit()
 
-# create_client_user(338600505, 'Mark', 'Lippert', datetime.datetime.now(), '')
-# print(all_sport_types())
-# add_sport_types()
-# print(get_list_of_sport_clubes_by_type(1))
-# print(get_list_of_sport_clubes_by_type(2))
-# add_subscription(338600505, 'base', 7)
 
 # эти функции раскоменьть, запусти и они создадут какие-то объекты в бд,
 # типа типы спортов, настройки и клубы
 # create_client_user(338600505, 'Mark', 'Lippert', datetime.datetime.now(), '')
 # create_sport_types()
 # create_subscription_settings()
+# create_sport_clubes()
 # create_sport_clubs()
 # all_sport_types()
-
 # create_events()
-
 # unsubscribe(542643041, 3)
-
 

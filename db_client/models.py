@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, Text, DateTime, Boolean, ForeignKey, create_engine
+from sqlalchemy import Column, Integer, BigInteger, Text, DateTime, Boolean, ForeignKey, create_engine
+
 from sqlalchemy.orm import declarative_base, sessionmaker
 from config import *
 from sqlalchemy.engine import URL
@@ -12,6 +13,7 @@ connection_string = URL.create("postgresql",
                                password=DB_PASSWORD,
                                database=DB_NAME
                                )
+
 
 engine = create_engine(connection_string)
 
@@ -97,6 +99,22 @@ class BookingEvent(BaseModel):
     user_id = Column(Integer, ForeignKey("user_client.tg_id"))
     event_id = Column(Integer, ForeignKey("event.id"))
     booking_datetime = Column(DateTime)
+
+
+class Chat(BaseModel):
+    __tablename__ = "chat"
+    chat_id = Column(BigInteger, primary_key=True)
+    name = Column(Text)
+    event = Column(Integer, default=0) # 0 - если ни к кому не принадлежит
+
+
+class LinkForUserToChat(BaseModel):
+    __tablename__ = "link_for_user_to_chat"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger)
+    user_id = Column(Integer)
+    link = Column(Text)
+    date_expired = Column(DateTime(timezone=True))
 
 
 class AiogramStateAdmins(BaseModel):

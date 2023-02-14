@@ -46,4 +46,6 @@ if __name__ == '__main__':
                         database=DB_NAME
                         )
     async_engine = new_async_engine(db_url)
+
     asyncio.run(initialize_schemas(async_engine))
+
