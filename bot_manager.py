@@ -1,11 +1,9 @@
 import logging
-from aiogram import Bot, Dispatcher, executor, types
+from config import MANAGER_BOT_TOKEN
+from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
-from aiogram.types import CallbackQuery
-from event_module import check_user_is_aproved
+from event_module import check_user_is_approved
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 approved_users = []
 
 # Define the bot's token
-API_TOKEN = '1417987136:AAFkQvUKEOxNNYrmBiP9sxoKgLm0PbBL5U4'
+API_TOKEN = MANAGER_BOT_TOKEN
 
 # Initialize bot and dispatcher
 bot = Bot(API_TOKEN)
@@ -22,15 +20,14 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
 
-
-
 # Define a middleware class to handle new members joining the chat
 class MemberJoinMiddleware(BaseMiddleware):
     async def on_pre_process_message(self, message, data):
         if message.new_chat_members:
             for member in message.new_chat_members:
-                if check_user_is_aproved(message.chat.id, member.id):
+                if not check_user_is_approved(message.chat.id, member.id):
                     await bot.kick_chat_member(chat_id=message.chat.id, user_id=member.id)
+
 
 # Use the middleware in the dispatcher
 dp.middleware.setup(MemberJoinMiddleware())
