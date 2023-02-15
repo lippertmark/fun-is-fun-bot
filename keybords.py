@@ -3,7 +3,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
 from db_client.utils import get_club_name, get_subscription_settings, get_event, get_absolutely_all_events
 
 
-webapp = WebAppInfo(url="https://eclectic-melba-d24886.netlify.app/")
+webapp = WebAppInfo(url="https://sage-mermaid-396618.netlify.app")
 
 # Here is simple inline buttons
 inl_base = InlineKeyboardButton('Базовый', callback_data='base_subscription')

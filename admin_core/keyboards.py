@@ -23,11 +23,11 @@ menu_kb = ReplyKeyboardMarkup([[create_activity_btn],
 
 # create activity menu
 videochat_btn = InlineKeyboardButton(text="Видеочат",
-                                     web_app=WebAppInfo(url=WEB_APP_BASE+'/create_activity/videochat'))
+                                     web_app=WebAppInfo(url=WEB_APP_BASE+'/videochat'))
 online_conference_btn = InlineKeyboardButton(text="Онлайн конференция",
-                                             web_app=WebAppInfo(url=WEB_APP_BASE+'/create_activity/online_conference'))
+                                             web_app=WebAppInfo(url=WEB_APP_BASE+'/online_conference'))
 offline_event_btn = InlineKeyboardButton(text="Оффлайн мероприятие",
-                                         web_app=WebAppInfo(url=WEB_APP_BASE+'/create_activity/offline_event'))
+                                         web_app=WebAppInfo(url=WEB_APP_BASE+'/offline_event'))
 create_activity_menu_kb = InlineKeyboardMarkup(inline_keyboard=[[videochat_btn],
                                                                 [online_conference_btn],
                                                                 [offline_event_btn]])
