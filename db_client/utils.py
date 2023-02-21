@@ -1,16 +1,19 @@
 from models import *
 import datetime
+import time
 
+from db_client.models import *
+from sqlalchemy import func
 
 # from decl import Session, UserClientCopy, engine
 
 
 def create_client_user(tg_id, username, name, surname, created_datetime, state=''):
     local_session = Session(bind=engine)
-
-    new_user = UserClient(tg_id=tg_id, username=username, name=name, surname=surname, created_datetime=created_datetime, state=state)
+    new_user = UserClient(tg_id=tg_id, name=name, surname=surname, username=username, created_datetime=created_datetime, state=state)
     local_session.add(new_user)
     local_session.commit()
+
 
 
 def create_admin_user(tg_id, name, surname, email, created_datetime, state=''):
@@ -29,8 +32,9 @@ def all_sport_types():
     sport_types = local_session.query(SportType).all()
     response = []
     for sport_type in sport_types:
-        response.append([sport_type.id, sport_type.name])
-
+        if get_list_of_sport_clubes_by_type(sport_type.id):
+            response.append([sport_type.id, sport_type.name])
+    local_session.commit()
     return response
 
 
@@ -89,6 +93,7 @@ def get_list_of_sport_clubes_by_type(sport_type_id):
     response = []
     for sport_type in sport_types:
         response.append([sport_type.id, sport_type.name])
+    local_session.commit()
     return response
 
 
@@ -113,12 +118,15 @@ def get_subscribes(tg_id):
     result = {}
     for sub in subs:
         result[sub.sport_club] = sub.type
+    local_session.commit()
     return result
 
 
 def get_club_name(club_id):
     local_session = Session(bind=engine)
     sport_type = local_session.query(SportClub).filter(SportClub.id == club_id)
+
+    local_session.commit()
     return sport_type[0].name
 
 
@@ -176,37 +184,43 @@ def get_club(club_id):
     if len(club) == 0:
         return None
     else:
-        return {
-            'id': club[0].id,
-            'name': club[0].name,
-            'sport_type': club[0].sport_type,
-            'base_subscription': get_subscription_settings(club[0].base_subscription),
-            'standart_subscription': get_subscription_settings(club[0].standart_subscription),
-            'premium_subscription': get_subscription_settings(club[0].premium_subscription)
-        }
-
-
-def get_all_events(club_id, type):
-        local_session = Session(bind=engine)
-
-        all_events = local_session.query(Event).filter(Event.club == club_id and Event.event_type == type)
-        response = {}
-        for event in all_events:
-                response[event.id] = {
-                        'id': event.id,
-                        'event_type': event.event_type,
-                        'club': event.club,
-                        'name': event.name,
-                        'tg_alias': event.tg_alias,
-                        'start_datetime': event.start_datetime,
-                        'duration': event.duration,
-                        'max_amount_of_people': event.max_amount_of_people,
-                        'created_datetime': event.created_datetime,
-                        'created_id': event.created_id,
-                        'telegram_group_id': event.telegram_group_id,
-                        'telegram_group_invitation_link': event.telegram_group_invitation_link,
-                }
+        response = {'id': club[0].id,
+                    'name': club[0].name,
+                    'sport_type': club[0].sport_type,
+                    'description': club[0].description,
+                    'photo': club[0].photo,
+                    'base_subscription': get_subscription_settings(club[0].base_subscription),
+                    'standard_subscription': get_subscription_settings(club[0].standart_subscription),
+                    'premium_subscription': get_subscription_settings(club[0].premium_subscription),
+                    'subscriptions': [get_subscription_settings(club[0].base_subscription),
+                                      get_subscription_settings(club[0].standart_subscription),
+                                      get_subscription_settings(club[0].premium_subscription)]
+                    }
         return response
+
+
+def get_all_events(club_id, type1):
+    local_session = Session(bind=engine)
+    all_events = local_session.query(Event).filter(Event.club == club_id, Event.event_type == type1)
+    response = {}
+    local_session.commit()
+    for event in all_events:
+        # if event.start_datetime > datetime.datetime.now():
+            response[event.id] = {
+                'id': event.id,
+                'event_type': event.event_type,
+                'club': event.club,
+                'name': event.name,
+                'tg_alias': event.tg_alias,
+                'start_datetime': event.start_datetime,
+                'duration': event.duration,
+                'max_amount_of_people': event.max_amount_of_people,
+                'created_datetime': event.created_datetime,
+                'created_id': event.created_id,
+                'telegram_group_id': event.telegram_group_id,
+                'telegram_group_invitation_link': event.telegram_group_invitation_link,
+            }
+    return response
 
 def get_all_time_delete():
     local_session = Session(bind=engine)
@@ -222,51 +236,59 @@ def get_all_time_delete():
 
 
 def get_event(event_id):
-        local_session = Session(bind=engine)
+    local_session = Session(bind=engine)
 
-        event = local_session.query(Event).filter(Event.id == event_id).all()
-        if len(event) == 0:
-                return None
-        else:
-                event = event[0]
-                return {
-                        'id': event.id,
-                        'event_type': event.event_type,
-                        'club': event.club,
-                        'name': event.name,
-                        'tg_alias': event.tg_alias,
-                        'start_datetime': event.start_datetime,
-                        'duration': event.duration,
-                        'max_amount_of_people': event.max_amount_of_people,
-                        'created_datetime': event.created_datetime,
-                        'created_id': event.created_id,
-                        'telegram_group_id': event.telegram_group_id,
-                        'telegram_group_invitation_link': event.telegram_group_invitation_link,
-                }
+    event = local_session.query(Event).filter(Event.id == event_id).all()
+    local_session.commit()
+    if len(event) == 0:
+        return None
+    else:
+        event = event[0]
+        return {
+            'id': event.id,
+            'event_type': event.event_type,
+            'club': event.club,
+            'name': event.name,
+            'tg_alias': event.tg_alias,
+            'start_datetime': event.start_datetime,
+            'duration': event.duration,
+            'max_amount_of_people': event.max_amount_of_people,
+            'created_datetime': event.created_datetime,
+            'created_id': event.created_id,
+            'telegram_group_id': event.telegram_group_id,
+            'telegram_group_invitation_link': event.telegram_group_invitation_link,
+        }
 
-def create_events():
-        local_session = Session(bind=engine)
 
-        event_1 = Event(event_type='offline_event', club=4, name='Пир на весь мир', tg_alias='lippert_mark', start_datetime=datetime.datetime.now(), duration=120, max_amount_of_people=10, created_datetime=datetime.datetime.now(), created_id=338600505, telegram_group_id='123', telegram_group_invitation_link='12312')
-        event_2 = Event(event_type='conference', club=5, name='Другое мероприятие', tg_alias='lippert_ne_mark', start_datetime=datetime.datetime.now(), duration=120, max_amount_of_people=10, created_datetime=datetime.datetime.now(), created_id=338600505, telegram_group_id='123', telegram_group_invitation_link='12312')
-
-        local_session.add(event_1)
-        local_session.add(event_2)
-        local_session.commit()
+def book_event(user_id, event_id, booking_datetime):
+    local_session = Session(bind=engine)
+    new_booking = BookingEvent(user_id=user_id, event_id=event_id, booking_datetime=booking_datetime)
+    local_session.add(new_booking)
+    local_session.commit()
 
 
 
 # create_client_user(338600505, 'Mark', 'Lippert', datetime.datetime.now(), '')
 # print(all_sport_types())
 
-# print(get_list_of_sport_clubes_by_type(1))
-# print(get_list_of_sport_clubes_by_type(2))
+def get_absolutely_all_events():
+    local_session = Session(bind=engine)
+    all_events = local_session.query(Event)
+    result = {}
+    for event in all_events:
+        result[event.id] = {'name': event.name, 'club': event.club}
+    local_session.commit()
+    return result
 
 # print(get_user(338600505))
 # print(get_club(4))
 
-# print(get_event(7))
-# print(get_all_events(4, 'offline_event'))
+def unsubscribe(user_id, club_id):
+    local_session = Session(bind=engine)
+    print("Пользователь ", user_id, "отписался от ", club_id)
+    local_session.query(Subscription).filter(Subscription.user == user_id, Subscription.sport_club == club_id).delete()
+    local_session.commit()
+
 
 # эти функции раскоменьть, запусти и они создадут какие-то объекты в бд,
 # типа типы спортов, настройки и клубы
@@ -274,3 +296,8 @@ def create_events():
 # create_sport_types()
 # create_subscription_settings()
 # create_sport_clubes()
+# create_sport_clubs()
+# all_sport_types()
+# create_events()
+# unsubscribe(542643041, 3)
+
