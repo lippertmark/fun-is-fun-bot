@@ -208,6 +208,19 @@ def get_all_events(club_id, type):
                 }
         return response
 
+def get_all_time_delete():
+    local_session = Session(bind=engine)
+    all_time_delete = local_session.query(TimeDelete).all()
+    response = []
+    for item in all_time_delete:
+        response.append({
+            'chat_id': item.chat_id,
+            'user_id': item.user_id,
+            'start_time': item.start_time,
+            'end_time': item.end_time,
+        })
+
+
 def get_event(event_id):
         local_session = Session(bind=engine)
 

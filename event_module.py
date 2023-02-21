@@ -91,7 +91,23 @@ def check_user_is_aproved(chat_id, user_id):
     for item in response:
         if (item.date_expired > date_now):
             return True
+    local_session.commit()
     return False
+
+def add_time_period_of_videochat(chat_id, user_id, start_time, end_time):
+    '''
+    Удаляет пользователя из чата после окончания конференции
+    :param chat_id: id чата
+    :param user_id: id юзера
+    :return:
+    '''
+    local_session = Session(bind=engine)
+    local_session.add(TimeDelete(chat_id=chat_id, user_id=user_id, start_time=start_time, end_time=end_time))
+    local_session.commit()
+
+
+
+
 
 
 #add_chats_to_db()
