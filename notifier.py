@@ -1,3 +1,4 @@
+import os
 from schedule import every, repeat, run_pending
 from sqlalchemy import select, create_engine
 from sqlalchemy.orm import sessionmaker
@@ -6,9 +7,16 @@ from db.models import BookingEvent, Event, Slots
 from datetime import datetime, timedelta
 from sortedcontainers import SortedSet
 from aiogram import Bot
-from config import *
+from dotenv import load_dotenv
 import asyncio
 import time
+
+
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+TOKEN_TELEGRAM_CLIENT = os.getenv('TOKEN_TELEGRAM_CLIENT')
+TOKEN_TELEGRAM_ADMIN = os.getenv('TOKEN_TELEGRAM_ADMIN')
 
 
 async def event_notification(event_id: int):
@@ -128,11 +136,11 @@ def update_events():
 if __name__ == "__main__":
     # db initialization
     db_url = URL.create("postgresql",
-                        host=DB_HOST,
-                        port=DB_PORT,
-                        username=DB_USERNAME,
-                        password=DB_PASSWORD,
-                        database=DB_NAME)
+                        host=os.getenv('DB_HOST'),
+                        port=os.getenv('DB_PORT'),
+                        username=os.getenv('DB_USERNAME'),
+                        password=os.getenv('DB_PASSWORD'),
+                        database=os.getenv('DB_NAME'))
     engine = create_engine(url=db_url, encoding="UTF-8")
     sm = sessionmaker(bind=engine, expire_on_commit=False)
 

@@ -1,9 +1,15 @@
+import os
 import logging
-from config import MANAGER_BOT_TOKEN
 from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from event_module import check_user_is_approved
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+MANAGER_BOT_TOKEN = os.getenv('MANAGER_BOT_TOKEN')
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)

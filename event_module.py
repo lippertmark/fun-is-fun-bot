@@ -1,5 +1,5 @@
+import os
 import datetime
-from config import *
 import requests
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
@@ -9,12 +9,11 @@ import pytz, time
 
 
 connection_string = URL.create("postgresql",
-                               host=DB_HOST,
-                               port=DB_PORT,
-                               username=DB_USERNAME,
-                               password=DB_PASSWORD,
-                               database=DB_NAME
-                               )
+                               host=os.getenv('DB_HOST'),
+                               port=os.getenv('DB_PORT'),
+                               username=os.getenv('DB_USERNAME'),
+                               password=os.getenv('DB_PASSWORD'),
+                               database=os.getenv('DB_NAME'))
 
 engine = create_engine(connection_string)
 Session = sessionmaker()

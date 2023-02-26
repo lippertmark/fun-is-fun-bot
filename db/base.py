@@ -1,9 +1,9 @@
+import os
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
 from db.models import BaseModel
 from typing import Union
-from config import *
 import asyncio
 
 
@@ -42,10 +42,10 @@ if __name__ == '__main__':
     # To initialize schemas run base.py directly
 
     db_url = URL.create("postgresql+asyncpg",
-                        host=DB_HOST,
-                        port=DB_PORT,
-                        username=DB_USERNAME,
-                        password=DB_PASSWORD,
-                        database=DB_NAME)
+                        host=os.getenv('DB_HOST'),
+                        port=os.getenv('DB_PORT'),
+                        username=os.getenv('DB_USERNAME'),
+                        password=os.getenv('DB_PASSWORD'),
+                        database=os.getenv('DB_NAME'))
     async_engine = new_async_engine(db_url)
     asyncio.run(initialize_schemas(async_engine))

@@ -1,3 +1,4 @@
+import os
 from admin_core.bot_handlers.registration import reg_admin_menu_handlers
 from admin_core.bot_handlers.menu import reg_menu_handlers
 from admin_core.bot_middlewares.sessionmaker import DbMiddleware
@@ -7,15 +8,17 @@ from aiogram import Bot
 from sqlalchemy.engine import URL
 from db.base import new_async_engine, new_session_maker
 from db.FSMStorage import Storage
-from config import *
+
+
+TOKEN_TELEGRAM_ADMIN = os.getenv('TOKEN_TELEGRAM_ADMIN')
 
 # db initialization
 db_url = URL.create("postgresql+asyncpg",
-                    host=DB_HOST,
-                    port=DB_PORT,
-                    username=DB_USERNAME,
-                    password=DB_PASSWORD,
-                    database=DB_NAME)
+                    host=os.getenv('DB_HOST'),
+                    port=os.getenv('DB_PORT'),
+                    username=os.getenv('DB_USERNAME'),
+                    password=os.getenv('DB_PASSWORD'),
+                    database=os.getenv('DB_NAME'))
 engine = new_async_engine(db_url, echo=False)
 sm = new_session_maker(engine)
 

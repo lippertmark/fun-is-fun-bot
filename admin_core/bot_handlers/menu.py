@@ -1,3 +1,5 @@
+import os
+
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
@@ -12,13 +14,19 @@ from admin_core import keyboards as k
 from sqlalchemy import select, delete, and_, cast, Date
 from sqlalchemy.orm import sessionmaker
 
+from dotenv import load_dotenv
+
 from db.models import Event, BookingEvent, UserAdmin, SportClub
 from event_module import give_link_to_invite
-from config import TOKEN_TELEGRAM_CLIENT
 from datetime import datetime, timedelta
 import json
 import i18n
 
+
+dotenv_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+TOKEN_TELEGRAM_CLIENT = os.getenv("TOKEN_TELEGRAM_CLIENT")
 """
 Main admin menu
 """

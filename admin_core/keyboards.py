@@ -1,9 +1,11 @@
+import os
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-from config import WEB_APP_BASE
 from typing import List, Tuple, Union
 
+
+WEB_APP_BASE = str(os.getenv('WEB_APP_BASE'))
 # resend verification code inline keyboard
 resend_code_btn = InlineKeyboardButton("новый код", callback_data="new_code_request")
 change_email_btn = InlineKeyboardButton("изменить email", callback_data="change_email")

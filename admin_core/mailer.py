@@ -1,4 +1,4 @@
-from config import CODE_LENGTH, EMAIL_SENDER, EMAIL_SECRET
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Tuple
 from random import randint
@@ -9,6 +9,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 TIME_FORMAT = "%d-%m-%Y %H:%M:%S"
+CODE_LENGTH = os.getenv('CODE_LENGTH')
+EMAIL_SENDER = os.getenv('EMAIL_SENDER')
+EMAIL_SECRET = os.getenv('EMAIL_SECRET')
 
 
 async def send_letter(email: str, subject: str, html_template: str, data: Dict):
