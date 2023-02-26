@@ -117,12 +117,14 @@ class LinkForUserToChat(BaseModel):
     date_expired = Column(DateTime(timezone=True))
 
 class TimeDelete(BaseModel):
-    __tablename__ = "TimeDelete"
+    __tablename__ = "time_delete"
     id = Column(Integer, primary_key=True, autoincrement=True)
     chat_id = Column(BigInteger)
     user_id = Column(Integer)
     start_time = Column(DateTime(timezone=True))
+    already_added = Column(Boolean, default=False)
     end_time = Column(DateTime(timezone=True))
+    already_deleted = Column(Boolean, default=False)
 
 
 class AiogramStateAdmins(BaseModel):

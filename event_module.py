@@ -1,13 +1,16 @@
 import datetime
 
 from config import *
-import requests
+import requests, asyncio
 import sqlalchemy
 from db_client.models import *
 import pytz, time
+from aiogram import Bot, types
+from aiogram.dispatcher import Dispatcher
+from aiogram.utils import executor
 
 
-token = '1417987136:AAFkQvUKEOxNNYrmBiP9sxoKgLm0PbBL5U4'
+token = TOKEN_TELEGRAM_MANAGER
 # method_name = 'createChatInviteLink'
 # data = {
 #     'chat_id': -1001860272929,
@@ -22,6 +25,11 @@ token = '1417987136:AAFkQvUKEOxNNYrmBiP9sxoKgLm0PbBL5U4'
 # r = requests.get()
 # https://t.me/+ke6tOryup6dkZTgy
 # test for fan
+bot_mаnager = Bot(TOKEN_TELEGRAM_MANAGER)
+
+
+async def delete_from_chat(chat_id, user_id):
+    await bot_mаnager.kick_chat_member(chat_id=chat_id, user_id=user_id)
 
 
 def do_request(token, method_name, method, data=dict()):
@@ -106,8 +114,23 @@ def add_time_period_of_videochat(chat_id, user_id, start_time, end_time):
     local_session.commit()
 
 
+def clean_chat(chat_id):
+    '''
+    Функция для удаления записей из чата.
+    :param chat_id: id чата
+    :return:
+    '''
+    local_session = Session(bind=engine)
+    list_for_delete = local_session.query(LinkForUserToChat).filter(LinkForUserToChat.chat_id == chat_id)
+    delete_records = []
+    for user in list_for_delete:
+        print(user.user_id)
+        asyncio.run(delete_from_chat(chat_id=chat_id, user_id=user.user_id))
+        delete_records.append(user.id)
+    for delete_id in delete_records:
+        local_session.query(LinkForUserToChat).filter(LinkForUserToChat.id == delete_id).delete()
 
-
+    local_session.commit()
 
 
 #add_chats_to_db()

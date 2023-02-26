@@ -6,18 +6,16 @@ from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.types import CallbackQuery
 from event_module import check_user_is_aproved
-
+from config import *
 # Enable logging
 logging.basicConfig(level=logging.INFO)
 
 # Define a list of approved users
 approved_users = []
 
-# Define the bot's token
-API_TOKEN = '1417987136:AAFkQvUKEOxNNYrmBiP9sxoKgLm0PbBL5U4'
 
 # Initialize bot and dispatcher
-bot = Bot(API_TOKEN)
+bot = Bot(TOKEN_TELEGRAM_MANAGER)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 

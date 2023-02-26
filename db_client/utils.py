@@ -1,8 +1,14 @@
-from models import *
+try:
+    from models import *
+except:
+    pass
 import datetime
 import time
+try:
+    from db_client.models import *
+except:
+    pass
 
-from db_client.models import *
 from sqlalchemy import func
 
 # from decl import Session, UserClientCopy, engine
@@ -228,11 +234,26 @@ def get_all_time_delete():
     response = []
     for item in all_time_delete:
         response.append({
+            'id': item.id,
             'chat_id': item.chat_id,
             'user_id': item.user_id,
             'start_time': item.start_time,
+            'already_added': item.already_added,
             'end_time': item.end_time,
+            'already_deleted': item.already_deleted,
         })
+    local_session.commit()
+    return response
+
+def update_time_delete(time_delete_id, data):
+    local_session = Session(bind=engine)
+    local_session.query(TimeDelete).filter(TimeDelete.id==time_delete_id).update(data)
+    local_session.commit()
+
+def delete_time_delete(time_delete_id):
+    local_session = Session(bind=engine)
+    local_session.query(TimeDelete).filter(TimeDelete.id == time_delete_id).delete()
+    local_session.commit()
 
 
 def get_event(event_id):
