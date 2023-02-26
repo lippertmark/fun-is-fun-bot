@@ -1,15 +1,22 @@
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
-from aiogram import Dispatcher
+from aiogram import Dispatcher, Bot
+
 from admin_core.chat_cleanup import clear_block, clear_io, add_trace, add_block_and_trace, delete_msg
-from admin_core.customers import get_event_participants
+from admin_core.customers import get_event_participants, get_affiliated_club, get_subscribers_tg_id
 from admin_core.admin_states import FSMAdminMenu
+from admin_core import event_maker as em
 from admin_core import keyboards as k
-from sqlalchemy.orm import sessionmaker
+
 from sqlalchemy import select, delete, and_, cast, Date
-from db.models import Event, BookingEvent, UserAdmin
-from datetime import datetime
+from sqlalchemy.orm import sessionmaker
+
+from db.models import Event, BookingEvent, UserAdmin, SportClub
+from event_module import give_link_to_invite
+from config import TOKEN_TELEGRAM_CLIENT
+from datetime import datetime, timedelta
+import json
 import i18n
 
 """
@@ -18,6 +25,8 @@ Main admin menu
 
 i18n.load_path.append('./admin_core')
 i18n.set('locale', 'ru')
+
+client_bot = Bot(TOKEN_TELEGRAM_CLIENT)
 
 
 async def show_menu(message: Message, sm: sessionmaker, state: FSMContext):
@@ -63,6 +72,112 @@ async def create_activity_menu(message: Message, state: FSMContext):
     await add_trace(m.message_id, state)
 
 
+# handler for data from webapp
+async def handle_webapp_data(web_app_message, state: FSMContext):
+    """
+    Handler for data from event_creation WebApp.
+
+    :param web_app_message:
+    :param state:
+    :return:
+    """
+    data = json.loads(web_app_message.web_app_data.data)
+
+    event_type = web_app_message.web_app_data.button_text
+    event_at_date_time = data.get('datetime').split('T')
+
+    if event_type == "Видеочат":
+        message = f"Вы создаёте видеочат\n" \
+                  f"Название: {data.get('name')}\n" \
+                  f"Проведёт: {data.get('organizer', web_app_message.from_user.username)}\n" \
+                  f"Дата: {event_at_date_time[0]}\n" \
+                  f"Начало в: {event_at_date_time[1]}\n" \
+                  f"Продлится: {data.get('duration')} минут\n" \
+                  f"Из них на каждого гостя: {data['durationForOne']} минут\n" \
+                  f"Всё верно?"
+    elif event_type == "Онлайн конференция":
+        message = f"Вы создаёте онлайн конференцию\n" \
+                  f"Название: {data.get('name')}\n" \
+                  f"Проведёт: {data.get('organizer', web_app_message.from_user.username)}\n" \
+                  f"Дата: {event_at_date_time[0]}\n" \
+                  f"Начало в: {event_at_date_time[1]}\n" \
+                  f"Продлится: {data.get('duration')} минут\n" \
+                  f"Максимум гостей: {data.get('max_persons')}\n" \
+                  f"Всё верно?"
+    else:
+        message = f"Вы создаёте оффлайн мероприятие\n" \
+                  f"Название: {data.get('name')}\n" \
+                  f"Проведёт: {data.get('organizer', web_app_message.from_user.username).strip('@')}\n" \
+                  f"Дата: {event_at_date_time[0]}\n" \
+                  f"Начало в: {event_at_date_time[1]}\n" \
+                  f"Продлится: {data.get('duration')} минут\n" \
+                  f"Максимум гостей: {data.get('max_persons')}\n" \
+                  f"Всё верно?"
+
+    save_data = {"event_type": event_type, "event_data": data}
+
+    unique_data_id = str(datetime.now())
+    await state.update_data({f"save_event-{unique_data_id}": save_data})
+
+    m = await web_app_message.answer(message, reply_markup=k.create_save_event_kb(unique_data_id))
+    await add_trace(m.message_id, state)
+
+
+async def confirm_event_creation(call: CallbackQuery, sm: sessionmaker, state: FSMContext):
+    user_data = await state.get_data()
+    saved_data = user_data.get(call.data)
+    user_data.update({call.data: {}})
+
+    event_type = saved_data.get("event_type").lower()
+    event_data = saved_data.get("event_data")
+
+    if event_type == "видеочат":
+        event_id = await em.new_videoconference(sm,
+                                                event_data.get('organizer', call.from_user.username),
+                                                event_data.get('name'),
+                                                datetime.strptime(event_data.get('datetime'), "%Y-%m-%dT%H:%M"),
+                                                int(event_data.get('duration', 0)),
+                                                int(event_data.get('durationForOne', 0)),
+                                                call.from_user.id)
+    elif event_type == "онлайн конференция":
+        event_id = await em.new_online_conference(sm,
+                                                  event_data.get('organizer', call.from_user.username),
+                                                  event_data.get('name'),
+                                                  datetime.strptime(event_data.get('datetime'), "%Y-%m-%dT%H:%M"),
+                                                  int(event_data.get('duration', 0)),
+                                                  int(event_data.get('max_persons', 0)),
+                                                  call.from_user.id)
+    else:
+        event_id = await em.new_offline_event(sm, event_data.get('organizer', call.from_user.username),
+                                              event_data.get('name'),
+                                              datetime.strptime(event_data.get('datetime'), "%Y-%m-%dT%H:%M"),
+                                              int(event_data.get('duration', 0)),
+                                              int(event_data.get('max_persons', 0)),
+                                              call.from_user.id)
+
+    await call.answer("Событие добавлено", show_alert=True)
+    await call.message.delete()
+
+    # section for sending notifications to subscribers
+    club_id = await get_affiliated_club(sm, call.from_user.id)
+    # selecting club name
+    async with sm() as session:
+        async with session.begin():
+            q = select(SportClub.name).where(SportClub.id == club_id)
+            club = await session.execute(q)
+            club = club.one_or_none()
+
+    event_at_date_time = event_data.get('datetime').split('T')
+    msg = f"Привет!\n" \
+          f"В твоей подписке на клуб {club.name} новое мероприятие:\n" \
+          f"{event_data.get('name')} ({event_type}), состоится {event_at_date_time[0]} в {event_at_date_time[1]} " \
+          f"и продлится {int(event_data.get('duration')) // 60} ч {int(event_data.get('duration')) % 60} мин"
+    kb = k.create_booking_kb(event_id)
+    subscribers = await get_subscribers_tg_id(event_type, club_id, sm)
+    for subscriber in subscribers:
+        await client_bot.send_message(subscriber, msg, reply_markup=kb)
+
+
 # -------
 # help section
 async def show_help(message: Message, state: FSMContext):
@@ -75,20 +190,7 @@ async def show_help(message: Message, state: FSMContext):
     """
     await clear_io(message.from_user.id, state, message.bot)
     await add_trace(message.message_id, state)
-    m = await message.answer(i18n.t('text.help'), reply_markup=k.call_support_kb)
-    await add_trace(m.message_id, state)
-
-
-async def show_support_contact(call: CallbackQuery, state: FSMContext):
-    """
-    Displays live support contact by request.
-
-    :param call:
-    :param state:
-    :return:
-    """
-    await call.answer()
-    m = await call.message.answer(i18n.t('text.call_help'))
+    m = await message.answer(i18n.t('text.help'))
     await add_trace(m.message_id, state)
 
 
@@ -109,12 +211,15 @@ async def show_event_dates(message: Message, sm: sessionmaker, state: FSMContext
 
     async with sm() as session:
         async with session.begin():
-            dates_req = select(Event.start_datetime).where(Event.created_id == message.from_user.id)
+            dates_req = select(Event.start_datetime) \
+                .where(and_(Event.created_id == message.from_user.id,
+                            Event.start_datetime > datetime.now() - timedelta(minutes=10)))
             event_dates = await session.execute(dates_req)
 
     # list of unique available dates
-    available_dates = list({date.start_datetime.strftime('%d.%m.%Y') for date in event_dates})
+    available_dates = list({date.start_datetime.date() for date in event_dates})
     available_dates.sort()
+    available_dates = [date.strftime('%d.%m.%Y') for date in available_dates]
 
     # oedates is unique identifier for this selection
     dates_kb_info = [(date, 'oedates:' + date) for date in available_dates]
@@ -138,9 +243,11 @@ async def show_open_events(call: CallbackQuery, sm: sessionmaker, state: FSMCont
     # events for user on selected day
     async with sm() as session:
         async with session.begin():
-            filtered_events_req = select(Event)\
+            filtered_events_req = select(Event) \
                 .where(and_(Event.created_id == call.from_user.id,
-                            cast(Event.start_datetime, Date) == selected_date))
+                            cast(Event.start_datetime, Date) == selected_date,
+                            Event.start_datetime > (datetime.now() - timedelta(minutes=10)))) \
+                .order_by(Event.start_datetime.asc())
             filtered_events = await session.execute(filtered_events_req)
 
     # forming kb
@@ -171,12 +278,17 @@ async def show_event_details(call: CallbackQuery, sm: sessionmaker, state: FSMCo
     participants = await get_event_participants(event_data.Event.id, sm)
 
     event_info = f"{event_data.Event.event_type} {event_data.Event.name}\n" \
-                 f"Начало: {event_data.Event.start_datetime.strftime('%d-%m-%Y %H:%M')}, продолжительность " \
-                 f"{event_data.Event.duration // 3600} ч, {event_data.Event.duration % 3600 // 60} мин\n" \
+                 f"Проведёт: {event_data.Event.tg_alias}\n" \
+                 f"Начало: {event_data.Event.start_datetime.strftime('%d-%m-%Y %H:%M')}\n" \
+                 f"Продолжительность: {event_data.Event.duration // 60} ч, {event_data.Event.duration % 60} мин\n" \
                  f"Гостей: {len(participants)} / {event_data.Event.max_amount_of_people}\n"
 
     if event_data.Event.event_type == "Онлайн конференция" or event_data.Event.event_type == "Оффлайн мероприятие":
-        event_info += f"Чат: {event_data.Event.telegram_group_invitation_link}"
+        try:
+            chat_link = give_link_to_invite(event_data.Event.telegram_group_id, call.from_user.id)
+        except:
+            chat_link = "не удалось получить ссылку на приглашение в чат"
+        event_info += f"Чат (ссылка действует 5 минут): {chat_link}"
 
     await call.answer()
     await k.save_new_kb_info(state, [('1', '1')])  # dummy kb to make "return" button work properly
@@ -226,8 +338,8 @@ async def confirmed_delete_event(call: CallbackQuery, sm: sessionmaker, state: F
     await call.answer(i18n.t('text.deleted_successfully'), show_alert=True)
     user_data = await state.get_data()
     event = user_data.get("selected_event_id")
-    msg = i18n.t('text.sorry_event_canceled')\
-        .replace('X', user_data.get("selected_event_name"))\
+    msg = i18n.t('text.sorry_event_canceled') \
+        .replace('X', user_data.get("selected_event_name")) \
         .replace('Y', user_data.get("delete_event_reason"))
     participants = await get_event_participants(event, sm)
 
@@ -241,7 +353,10 @@ async def confirmed_delete_event(call: CallbackQuery, sm: sessionmaker, state: F
         async with session.begin():
             for participant in participants:
                 participant_id = participant.UserClient.tg_id
-                await call.bot.send_message(participant_id, msg)
+                try:  # to avoid errors when user blocked us
+                    await client_bot.send_message(participant_id, msg)
+                except:
+                    pass
                 await session.execute(delete(BookingEvent).where(and_(BookingEvent.user_id == participant_id,
                                                                       BookingEvent.event_id == event)))
             await session.execute(delete(Event).where(Event.id == event))
@@ -263,7 +378,7 @@ async def cancel_delete_event(call: CallbackQuery, state: FSMContext):
 # statistics section
 async def show_statistics(message: Message, state: FSMContext):
     """
-    Displays statistics menu. TODO
+    Displays statistics menu.
 
     :param message:
     :param state:
@@ -369,6 +484,23 @@ async def notify_empty_list(call: CallbackQuery):
     await call.answer("совсем пусто")
 
 
+async def return_to_menu_kb_btn(message: Message, sm: sessionmaker, state: FSMContext):
+    """
+    Another kb button to return to menu.
+
+    :param message:
+    :param sm:
+    :param state:
+    :return:
+    """
+    user_data = await state.get_data()
+    await add_trace(message.message_id, state)
+    await delete_msg(message.from_user.id, user_data.get("menu_msg"), message.bot)  # to resend with new menu_kb later
+    await clear_io(message.from_user.id, state, message.bot)
+    m_id = await show_menu(message, sm, state)
+    await state.update_data(menu_msg=m_id)
+
+
 def reg_menu_handlers(dp: Dispatcher):
     """
     Registers admin menu handlers in the dispatcher of the bot.
@@ -385,12 +517,15 @@ def reg_menu_handlers(dp: Dispatcher):
     # create new event, entry button
     dp.register_message_handler(create_activity_menu, Text(equals="Создать активность", ignore_case=True),
                                 state=FSMAdminMenu.main_menu)
+    # handle new event data from WebApp
+    dp.register_message_handler(handle_webapp_data, content_types="web_app_data", state=FSMAdminMenu.main_menu)
+    # confirm new event and add to db
+    dp.register_callback_query_handler(confirm_event_creation, lambda c: c.data and c.data.startswith("save_event"),
+                                       state=FSMAdminMenu.main_menu)
 
     # -------
     # help
     dp.register_message_handler(show_help, Text(equals="Помощь", ignore_case=True), state=FSMAdminMenu.main_menu)
-    # user requested live support
-    dp.register_callback_query_handler(show_support_contact, text="call_help", state=FSMAdminMenu.main_menu)
 
     # -------
     # show active events process, entry button
@@ -428,3 +563,8 @@ def reg_menu_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(previous_page_kb, text="previous_page", state=FSMAdminMenu.main_menu)
     dp.register_callback_query_handler(return_kb, text="return", state=FSMAdminMenu.main_menu)
     dp.register_callback_query_handler(notify_empty_list, text="empty", state=FSMAdminMenu.main_menu)
+
+    # -------
+    # another implementation of "return to menu" btn
+    dp.register_message_handler(return_to_menu_kb_btn, Text(equals="назад", ignore_case=True),
+                                state=FSMAdminMenu.main_menu)

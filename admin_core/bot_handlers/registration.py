@@ -2,7 +2,6 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
 from aiogram import Dispatcher
 from admin_core.admin_states import FSMRegistration, FSMAdminMenu
-from admin_core.chat_cleanup import clear_io, add_trace
 from admin_core.mailer import send_code, TIME_FORMAT
 from admin_core import keyboards as k
 from sqlalchemy.orm import sessionmaker
@@ -41,7 +40,6 @@ async def greet(message: Message, sm: sessionmaker, state: FSMContext) -> None:
         await request_email(message, state)
     else:
         # clearing user data just in case (mainly for test)
-        await clear_io(message.from_user.id, state, message.bot)
         await state.reset_data()
         await state.set_state(FSMAdminMenu.main_menu.state)
         await message.answer(i18n.t('text.correct_code'))
@@ -57,8 +55,7 @@ async def request_email(message: Message, state: FSMContext) -> None:
     :param message:
     :return:
     """
-    m = await message.answer(i18n.t('text.request_email'))
-    await add_trace(m.message_id, state)
+    await message.answer(i18n.t('text.request_email'))
     await state.set_state(FSMRegistration.email_registration.state)
 
 
@@ -78,16 +75,13 @@ async def send_verification_code(message: Message, sm: sessionmaker, state: FSMC
             user = await session.execute((select(UserAdmin).where(UserAdmin.email == message.text)))
             user = user.one_or_none()
     if user is None:
-        m = await message.answer(i18n.t('text.wrong_email'))
-        await add_trace(m.message_id, state)
+        await message.answer(i18n.t('text.wrong_email'))
         return
     if user.UserAdmin.tg_id is not None and user.UserAdmin.tg_id != message.from_user.id:
         # TODO: decide: is it correct to rewrite user data?
-        m = await message.answer(i18n.t('text.replacing_tg_account'))
-        await add_trace(m.message_id, state)
+        await message.answer(i18n.t('text.replacing_tg_account'))
 
     m = await message.answer(i18n.t('text.request_code'))
-    await add_trace(m.message_id, state)
     code, creation_time, expiration_time = await send_code(message.text)
     await state.update_data(email=message.text,
                             verification_code=code,
@@ -107,11 +101,9 @@ async def check_code(message: Message, sm: sessionmaker, state: FSMContext):
     """
     user_data = await state.get_data()
     if datetime.now() > datetime.strptime(user_data['expires'], TIME_FORMAT):
-        m = await message.answer(i18n.t('text.code_expired'), reply_markup=k.resend_code_kb)
-        await add_trace(m.message_id, state)
+        await message.answer(i18n.t('text.code_expired'), reply_markup=k.resend_code_kb)
     elif message.text != user_data.get('verification_code'):
-        m = await message.answer(i18n.t('text.wrong_code'), reply_markup=k.resend_code_kb)
-        await add_trace(m.message_id, state)
+        await message.answer(i18n.t('text.wrong_code'), reply_markup=k.resend_code_kb)
     else:
         # everything is fine, user authorised
         async with sm() as session:
@@ -129,7 +121,6 @@ async def check_code(message: Message, sm: sessionmaker, state: FSMContext):
         await message.reply(i18n.t('text.correct_code'))
         await state.finish()  # to remove unnecessary data
         await state.set_state(FSMAdminMenu.main_menu.state)
-        await clear_io(message.from_user.id, state, message.bot)
         await message.answer(i18n.t('text.menu'), reply_markup=k.menu_kb)  # display menu
 
 
@@ -162,8 +153,7 @@ async def change_email(call: CallbackQuery, state: FSMContext):
     :return:
     """
     await call.answer()  # to avoid loading symbol on button
-    m = await call.message.answer(i18n.t('text.request_email'))
-    await add_trace(m.message_id, state)
+    await call.message.answer(i18n.t('text.request_email'))
     await state.set_state(FSMRegistration.email_registration.state)
 
 

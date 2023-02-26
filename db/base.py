@@ -10,18 +10,17 @@ import asyncio
 def new_async_engine(url: Union[URL, str], echo: bool = False) -> AsyncEngine:
     """
     Create an instance of async engine by url.
-
     :param url:
     :param echo:
     :return:
     """
-    return create_async_engine(url=url, encoding="UTF-8", echo=echo, pool_pre_ping=True)
+
+    return create_async_engine(url=url, echo=echo, pool_pre_ping=True)
 
 
 def new_session_maker(engine: AsyncEngine) -> sessionmaker:
     """
     Create an instance of sessionmaker for async engine.
-
     :param engine:
     :return:
     """
@@ -32,7 +31,6 @@ async def initialize_schemas(engine: AsyncEngine) -> None:
     """
     Initializes tables for new schemas from metadata of BaseModel.
     Will NOT remove or update tables that already exist.
-
     :param engine:
     :return:
     """

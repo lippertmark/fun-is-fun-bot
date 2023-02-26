@@ -22,19 +22,40 @@ menu_kb = ReplyKeyboardMarkup([[create_activity_btn],
                                [shop_btn]], resize_keyboard=True)
 
 # create activity menu
-videochat_btn = InlineKeyboardButton(text="Видеочат",
-                                     web_app=WebAppInfo(url=WEB_APP_BASE+'/videochat'))
-online_conference_btn = InlineKeyboardButton(text="Онлайн конференция",
-                                             web_app=WebAppInfo(url=WEB_APP_BASE+'/online_conference'))
-offline_event_btn = InlineKeyboardButton(text="Оффлайн мероприятие",
-                                         web_app=WebAppInfo(url=WEB_APP_BASE+'/offline_event'))
-create_activity_menu_kb = InlineKeyboardMarkup(inline_keyboard=[[videochat_btn],
-                                                                [online_conference_btn],
-                                                                [offline_event_btn]])
+videochat_btn = KeyboardButton(text="Видеочат",
+                               web_app=WebAppInfo(url=WEB_APP_BASE + '/videochat'))
+online_conference_btn = KeyboardButton(text="Онлайн конференция",
+                                       web_app=WebAppInfo(url=WEB_APP_BASE + '/conference'))
+offline_event_btn = KeyboardButton(text="Оффлайн мероприятие",
+                                   web_app=WebAppInfo(url=WEB_APP_BASE + '/offline_event'))
+create_activity_menu_kb = ReplyKeyboardMarkup(keyboard=[[videochat_btn],
+                                                        [online_conference_btn],
+                                                        [offline_event_btn],
+                                                        [KeyboardButton(text="Назад")]], resize_keyboard=True)
 
-# call support
-call_support_btn = InlineKeyboardButton(text="Написать в поддержку", callback_data="call_help")
-call_support_kb = InlineKeyboardMarkup(inline_keyboard=[[call_support_btn]])
+
+def create_save_event_kb(event_id):
+    """
+    Creates inline button to save event with save_event- + event_id as callback data.
+
+    :param event_id:
+    :return:
+    """
+    save_event_btn = InlineKeyboardButton(text="Да, сохранить",
+                                          callback_data="save_event-"+event_id)
+    return InlineKeyboardMarkup(inline_keyboard=[[save_event_btn]])
+
+
+def create_booking_kb(event_id):
+    """
+    Creates inline registration button for client with book_event- + event_id as callback_data
+
+    :param event_id:
+    :return:
+    """
+    book_event_btn = InlineKeyboardButton(text="Зарегистрироваться",
+                                          callback_data="book_event-"+event_id)
+    return InlineKeyboardMarkup(inline_keyboard=[[book_event_btn]])
 
 
 # delete event
@@ -42,26 +63,22 @@ delete_event_btn = InlineKeyboardButton(text="Удалить", callback_data="de
 cancel_event_delete_btn = InlineKeyboardButton(text="Назад", callback_data="return")
 delete_event_kb = InlineKeyboardMarkup(inline_keyboard=[[delete_event_btn, cancel_event_delete_btn]])
 
-
 # confirmation of delete
 no_delete_event_btn = InlineKeyboardButton(text="Отмена", callback_data="delete_event_cancel")
 yes_delete_event_btn = InlineKeyboardButton(text="Да", callback_data="delete_event_confirmation")
 yes_no_delete_event_kb = InlineKeyboardMarkup(inline_keyboard=[[no_delete_event_btn, yes_delete_event_btn]])
 
-
 # shop control
 add_item = InlineKeyboardButton(text="Добавить товар",
-                                web_app=WebAppInfo(url=WEB_APP_BASE+'/shop/add_item'))
+                                web_app=WebAppInfo(url=WEB_APP_BASE + '/shop/add_item'))
 show_orders = InlineKeyboardButton(text="Список заказов",
-                                   web_app=WebAppInfo(url=WEB_APP_BASE+'/shop/orders'))
+                                   web_app=WebAppInfo(url=WEB_APP_BASE + '/shop/orders'))
 shop_control_kb = InlineKeyboardMarkup(inline_keyboard=[[add_item], [show_orders]])
 
-
 # temporary statistics
-open_statistics_btn = InlineKeyboardButton(text="Открыть в отдельном окне", url="https://combot.org/c/1785291662/a")
-open_statistics_btn2 = InlineKeyboardButton(text="Открыть в этом окне",
-                                            web_app=WebAppInfo(url="https://combot.org/c/1785291662/a"))
-statistics_kb = InlineKeyboardMarkup(inline_keyboard=[[open_statistics_btn], [open_statistics_btn2]])
+open_statistics_btn = InlineKeyboardButton(text="Открыть статистику канала",
+                                           web_app=WebAppInfo(url="https://combot.org/c/1785291662/a"))
+statistics_kb = InlineKeyboardMarkup(inline_keyboard=[[open_statistics_btn]])
 
 
 async def build_inline_keyboard(items: List[Tuple[str, Union[int, str]]], page: int = 1, items_on_page=10):
@@ -91,7 +108,7 @@ async def build_inline_keyboard(items: List[Tuple[str, Union[int, str]]], page: 
     start_id = (page - 1) * items_on_page
     end_id = min((total_pages - 1) * items_on_page + len(items) - start_id, page * items_on_page)
     for i in range(start_id, end_id):
-        kb.row(InlineKeyboardButton(text=items[i][0], callback_data=items[i][1]),)
+        kb.row(InlineKeyboardButton(text=items[i][0], callback_data=items[i][1]), )
 
     # last row for navigation
     nav_row = [InlineKeyboardButton(text="Назад", callback_data="return")]

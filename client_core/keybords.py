@@ -1,9 +1,8 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardRemove
-from db_client.utils import get_club_name, get_subscription_settings, get_event, get_absolutely_all_events
+from db.utils import get_club_name, get_subscription_settings
 
-
-webapp = WebAppInfo(url="https://sage-mermaid-396618.netlify.app")
+webapp = WebAppInfo(url="https://eclectic-melba-d24886.netlify.app")
 
 # Here is simple inline buttons
 inl_base = InlineKeyboardButton('Базовый', callback_data='base_subscription')
@@ -30,7 +29,7 @@ sub_default_btn = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=Tr
 
 # Here is InlineKeyboards
 club_btn = InlineKeyboardMarkup().add(inl_get_sub).add(inl_store).add(inl_menu).add(inl_back)
-buy_btn = InlineKeyboardMarkup().add(inl_buy)
+buy_btn = InlineKeyboardMarkup().add(inl_buy).add(inl_back)
 subs_btn = InlineKeyboardMarkup().row(inl_base, inl_stand, inl_prem).add(inl_back)
 yes_no = InlineKeyboardMarkup().add(InlineKeyboardButton("Да", callback_data='yes')). \
     add(InlineKeyboardButton("нет", callback_data='no'))
@@ -49,27 +48,56 @@ def add_buttons(kb, length):
         kb.add(InlineKeyboardButton('Назад', callback_data='back'))
 
 
-def get_all(list_, is_back):
+def get_all(items, page, is_back):
     """
-    :param list_: list of clubs or categories
+    :param items: list of clubs or categories
     :param is_back: is need to add 'back' button?
+    :param page: page num
     :return: Inline keyboard with list, max 10 line
     """
     inl_kb = InlineKeyboardMarkup()
-    for i in range(len(list_)):
-        inl_kb.row(InlineKeyboardButton(f"{list_[i][1]}",
-                                        callback_data=list_[i][0]))
-        if i == 9:
+    page *= 10
+    count = 0
+    for item in items:
+        if count >= page:
+            inl_kb.row(InlineKeyboardButton(f"{items[item]}",
+                                            callback_data=item))
+        count += 1
+        if count == page + 9:
             break
-    if len(list_) > 10:
+    if len(items) > 10:
         if is_back:
-            add_buttons(inl_kb, len(list_))
+            add_buttons(inl_kb, len(items))
         else:
             inl_kb.add(InlineKeyboardButton("<", callback_data="<"),
                        InlineKeyboardButton(">", callback_data=">"))
     else:
         if is_back:
             inl_kb.add(InlineKeyboardButton('Назад', callback_data='back'))
+    return inl_kb
+
+
+async def get_all_subs(subs, page):
+    inl_kb = InlineKeyboardMarkup()
+    page = page * 10
+    count = 0
+    for sub in subs:
+        if count >= page:
+            inl_kb.row(InlineKeyboardButton(f"{await get_club_name(sub)} "
+                                            f"- {subs[sub][0]}",
+                                            callback_data=sub))
+        count += 1
+        if count == page + 9:
+            break
+    add_buttons(inl_kb, len(subs))
+    return inl_kb
+
+
+def get_sub_info(subs):
+    inl_kb = InlineKeyboardMarkup()
+    for i in subs['includes']:
+        inl_kb.add(InlineKeyboardButton(i, callback_data=i))
+    inl_kb.add(inl_store, InlineKeyboardButton("Отменить подписку", callback_data="unsubscribe")).add(inl_back)
     return inl_kb
 
 
@@ -87,50 +115,19 @@ def get_events(events, page):
     return inl_event
 
 
-def get_all_subs(subs, page):
-    inl_kb = InlineKeyboardMarkup()
-    page = page * 10
-    count = 0
-    for sub in subs:
-        if count >= page:
-            inl_kb.row(InlineKeyboardButton(f"{get_club_name(sub)} "
-                                            f"- {get_subscription_settings(subs[sub])['subscription_type']}",
-                                            callback_data=sub))
-        count += 1
-        if count == page + 9:
-            break
-    add_buttons(inl_kb, len(subs))
-    return inl_kb
-
-
 def get_all_bookings(bookings, page):
-    inl_kb = InlineKeyboardMarkup()
+    inl_booking = InlineKeyboardMarkup()
     page *= 10
     count = 0
-    all_events = get_absolutely_all_events()
     for booking in bookings:
         if count >= page:
-            inl_kb.row(InlineKeyboardButton(f"{all_events[booking]['name']} от {get_club_name(all_events[booking]['club'])}",
-                                            callback_data=booking))
+            inl_booking.add(InlineKeyboardButton(f"{bookings[booking][0]} - {bookings[booking][1]}",
+                                                 callback_data=str(booking)))
         count += 1
-        if count == 9 + page:
+        if count == page + 10:
             break
-    add_buttons(inl_kb, len(bookings))
-    return inl_kb
-
-
-def swipe(list_, page, is_back):
-    inl_kb = InlineKeyboardMarkup()
-    for i in range(len(list_) - page * 10):
-        inl_kb.add(InlineKeyboardButton(f"{list_[i + page * 10][1]}", callback_data=list_[i + page * 10][0]))
-        if i == 9:
-            break
-    if is_back:
-        add_buttons(inl_kb, 12)
-    else:
-        inl_kb.add(InlineKeyboardButton("<", callback_data="<"),
-                   InlineKeyboardButton(">", callback_data=">"))
-    return inl_kb
+    add_buttons(inl_booking, len(bookings))
+    return inl_booking
 
 
 def get_support_btn():
@@ -140,18 +137,8 @@ def get_support_btn():
     return inl_support
 
 
-def get_sub_info(sub):
-    subs = get_subscription_settings(sub)
-    tarif = InlineKeyboardMarkup()
-    for i in subs['includes']:
-        tarif.add(InlineKeyboardButton(i, callback_data=i))
-    tarif.add(inl_store, InlineKeyboardButton("Отменить подписку", callback_data="unsubscribe")).add(inl_back)
-    return tarif
-
-
 def get_web_app():
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    one_butt = InlineKeyboardButton(text="Тестовая страница", web_app=webapp)
-    keyboard.add(one_butt)
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    button = KeyboardButton(text="Тестовая страница", web_app=webapp)
+    keyboard.add(button).add(KeyboardButton('Главное меню'))
     return keyboard
-
