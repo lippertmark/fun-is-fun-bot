@@ -54,7 +54,7 @@ def create_booking_kb(event_id):
     :return:
     """
     book_event_btn = InlineKeyboardButton(text="Зарегистрироваться",
-                                          callback_data="book_event-"+event_id)
+                                          callback_data="book_event-"+str(event_id))
     return InlineKeyboardMarkup(inline_keyboard=[[book_event_btn]])
 
 

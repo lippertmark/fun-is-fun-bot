@@ -139,4 +139,3 @@ class Slots(BaseModel):
     event_id = Column(Integer, ForeignKey("event.id"))
     start_time = Column(DateTime)
     end_time = Column(DateTime)
-

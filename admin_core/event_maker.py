@@ -155,7 +155,7 @@ async def new_videoconference(sm: sessionmaker,
                 base_time = new_time
 
             # saving slots info
-            await session.bulk_save_objects(slots)
+            session.add_all(slots)
             await session.commit()
 
     return event_id
