@@ -4,17 +4,19 @@ import requests
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
 from db.models import *
 import pytz, time
 
-
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
 connection_string = URL.create("postgresql",
                                host=os.getenv('DB_HOST'),
                                port=os.getenv('DB_PORT'),
                                username=os.getenv('DB_USERNAME'),
                                password=os.getenv('DB_PASSWORD'),
                                database=os.getenv('DB_NAME'))
-
 engine = create_engine(connection_string)
 Session = sessionmaker()
 

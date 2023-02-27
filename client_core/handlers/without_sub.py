@@ -162,7 +162,6 @@ async def buy_sub(callback_query: types.CallbackQuery, state: FSMContext):
             club_info = await get_club_info(data['club'])
             data["subs"] = club_info[code]['id']
             data["sub_type"] = club_info[code]['type']
-            print(club_info[code]['price'])
             subs = await get_subscribes(callback_query.from_user.id)
             if not int(data['club']) in (subs.keys()):
                 await delete_last_message(callback_query.from_user.id, state)

@@ -233,9 +233,7 @@ async def booked_event(callback_query: types.CallbackQuery, state: FSMContext):
         async with state.proxy() as data:
             event = await get_event(code)
             data['booked_event'] = event['id']
-            chat_id = await get_chatId(event['id'])
             link = await get_link(event['start_datetime'], event['event_type'], event['id'], callback_query.from_user.id)
-            # link = "Here will be link soon"
             club_name = await get_club_name(event['club'])
             await bot.edit_message_text(text=i18n.t("text.booked_event", event_name=event['name'],
                                                     club_name=club_name,

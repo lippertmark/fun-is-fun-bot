@@ -3,9 +3,12 @@ from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from typing import List, Tuple, Union
+from dotenv import load_dotenv
 
-
-WEB_APP_BASE = str(os.getenv('WEB_APP_BASE'))
+dotenv_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+WEB_APP_BASE = os.getenv('WEB_APP_BASE')
 # resend verification code inline keyboard
 resend_code_btn = InlineKeyboardButton("новый код", callback_data="new_code_request")
 change_email_btn = InlineKeyboardButton("изменить email", callback_data="change_email")

@@ -65,8 +65,8 @@ async def videochat_notification(slot_id: int):
                    f'(через <b>{(participant.Slots.start_time - datetime.now()).seconds // 60 + 1}</b> минут)'
 
     # messaging participant
-    if participant.Slots.user != 0:
-        await user_notifier.send_message(participant.Slots.user, reminder_msg)
+    if participant.Slots.user_id != 0:
+        await user_notifier.send_message(participant.Slots.user_id, reminder_msg)
 
 
 async def by_minute_checker():
