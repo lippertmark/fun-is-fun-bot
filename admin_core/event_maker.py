@@ -152,7 +152,7 @@ async def new_videoconference(sm: sessionmaker,
             for i in range(max_people):
                 new_time = base_time + timedelta(minutes=time_per_participant)
                 slots.append(Slots(start_time=base_time, end_time=new_time, event_id=event_id, user_id=0))
-                base_time = new_time
+                base_time = new_time + timedelta(minutes=1)
 
             # saving slots info
             session.add_all(slots)

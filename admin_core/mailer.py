@@ -1,7 +1,8 @@
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Tuple
+from dotenv import load_dotenv
 from random import randint
+from typing import Dict
 
 import smtplib
 
@@ -9,7 +10,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 TIME_FORMAT = "%d-%m-%Y %H:%M:%S"
-CODE_LENGTH = os.getenv('CODE_LENGTH')
+CODE_LENGTH = 6
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
 EMAIL_SENDER = os.getenv('EMAIL_SENDER')
 EMAIL_SECRET = os.getenv('EMAIL_SECRET')
 

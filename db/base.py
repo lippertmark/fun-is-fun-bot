@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSessio
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
 from db.models import BaseModel
+from dotenv import load_dotenv
 from typing import Union
 import asyncio
 
@@ -40,12 +41,15 @@ async def initialize_schemas(engine: AsyncEngine) -> None:
 
 if __name__ == '__main__':
     # To initialize schemas run base.py directly
-
+    dotenv_path = os.path.join(os.path.dirname(__file__), '..',  ".env")
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path)
     db_url = URL.create("postgresql+asyncpg",
                         host=os.getenv('DB_HOST'),
                         port=os.getenv('DB_PORT'),
                         username=os.getenv('DB_USERNAME'),
                         password=os.getenv('DB_PASSWORD'),
                         database=os.getenv('DB_NAME'))
+    print(db_url)
     async_engine = new_async_engine(db_url)
     asyncio.run(initialize_schemas(async_engine))

@@ -1,6 +1,6 @@
 import os
-from schedule import every, repeat, run_pending
-from sqlalchemy import select, create_engine
+from sqlalchemy import select, create_engine, and_
+from schedule import every, run_pending
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
 from db.models import BookingEvent, Event, Slots
@@ -83,7 +83,6 @@ async def by_minute_checker():
         await videochat_notification(slot[0])
 
 
-@repeat(every(1).minutes)
 def run_by_minute_checker():
     """
     Workaround, schedule does not support async initially
@@ -91,7 +90,6 @@ def run_by_minute_checker():
     asyncio.run(by_minute_checker())
 
 
-@repeat(every(5).minutes)
 def update_events():
     """
     Every N minutes updates reminders, gets events in period (now, now + 1.5h]
@@ -104,7 +102,7 @@ def update_events():
             q = select(Event) \
                 .where(Event.start_datetime.between(time_now, bound_time))
             events = session.execute(q, execution_options={"prebuffer_rows": True})
-            q = select(Slots).where(Slots.start_time.between(time_now, bound_time))
+            q = select(Slots).where(and_(Slots.start_time.between(time_now, bound_time), Slots.user_id != 0))
             slots = session.execute(q, execution_options={"prebuffer_rows": True})
 
     new_reminders = SortedSet(key=lambda x: x[1])
@@ -157,6 +155,8 @@ if __name__ == "__main__":
 
     # scheduler initialization
     time.sleep(60 - (time.time() % 60))  # to start scheduler at the beginning of the minute
+    every(1).minutes.do(run_by_minute_checker)
+    every(5).minutes.do(update_events)
     while True:
         run_pending()
         time.sleep(1)
