@@ -203,6 +203,7 @@ async def slots(callback_query: types.CallbackQuery, state: FSMContext):
             else:
                 await bot.delete_message(chat_id=callback_query.from_user.id,
                                          message_id=callback_query.message.message_id)
+                data['msg'].pop()
             callback_query.data = "book_event-" + str(data['chosen_event'])
             await add_booking(callback_query, state, code)
             await state.reset_state(with_data=False)
