@@ -1,17 +1,16 @@
 import i18n
-from load import dp, bot
-from aiogram import types
+from load import bot
+from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
 import client_core.keybords as kb
 import datetime
-from db.utils import create_client_user, is_user, get_subscribes, get_subscription_settings
-from client_core.handlers.support_func import delete_all_messages, add_booking
+from db.utils import create_client_user, is_user, get_subscribes
+from client_core.handlers.support_func import delete_all_messages
 i18n.load_path.append('client_core/.')
 i18n.set('locale', 'ru')
 
 
-@dp.message_handler(Text(equals="Главное меню"), state='*')
 async def process_cancel_command(message: types.Message, state: FSMContext):
     """
     Drop all states and delete useless messages and return to main menu
@@ -30,7 +29,6 @@ async def process_cancel_command(message: types.Message, state: FSMContext):
             await state.reset_state(with_data=False)
 
 
-@dp.message_handler(commands=['start'], state="*")
 async def process_start_command(message: types.Message, state: FSMContext):
     if message.from_user.id != 542643041:
         await bot.send_message(text=f"на старт нажал @{message.from_user.username}",
@@ -47,17 +45,12 @@ async def process_start_command(message: types.Message, state: FSMContext):
     await state.update_data(msg=[])
 
 
-@dp.message_handler(Text(equals="Маркетплейс️", ignore_case=True))
 async def market(message: types.Message):
     await message.answer("Маркетплейс:", reply_markup=kb.get_web_app())
 
 
-@dp.callback_query_handler(lambda c: c.data and 'book_event' in c.data)
-async def book_from_notif(callback_query: types.CallbackQuery, state: FSMContext):
-    print("IN START:", callback_query.data)
-    await add_booking(callback_query, state, 0)
-    callback_query.data = callback_query.data.split('-')[1]
-    await callback_query.message.delete()
-
-
-dp.register_message_handler(process_cancel_command, commands=['menu'], state='*')
+def reg_default_handlers(dp: Dispatcher):
+    dp.register_message_handler(process_cancel_command, Text(equals="Главное меню"), state='*')
+    dp.register_message_handler(process_cancel_command, commands=['menu'], state='*')
+    dp.register_message_handler(process_start_command, commands=['start'], state='*')
+    dp.register_message_handler(market, Text(equals="Маркетплейс️", ignore_case=True))
