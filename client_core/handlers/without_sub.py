@@ -200,11 +200,17 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
 
 def reg_without_sub_handlers(dp: Dispatcher):
     dp.register_message_handler(find_club, Text(equals="Найти клуб️", ignore_case=True))
+
     dp.register_callback_query_handler(teams_list, state=ClientStates.find_club)
+
     dp.register_message_handler(search, state=ClientStates.find_club)
+
     dp.register_callback_query_handler(the_team, state=ClientStates.club_info)
+
     dp.register_callback_query_handler(club_page, state=ClientStates.club_page)
+
     dp.register_callback_query_handler(buy_sub, state=ClientStates.buy_sub)
+
     dp.register_pre_checkout_query_handler(process_pre_checkout_query, lambda query: True, state=ClientStates.buy_sub)
     dp.register_message_handler(process_successful_payment, content_types=ContentType.SUCCESSFUL_PAYMENT,
                                 state=ClientStates.buy_sub)

@@ -36,6 +36,8 @@ yes_no = InlineKeyboardMarkup().add(InlineKeyboardButton("Да", callback_data='
 inl_book = InlineKeyboardMarkup().add(InlineKeyboardButton("Забронировать", callback_data='book')).add(inl_back)
 inl_qa = InlineKeyboardMarkup().add(InlineKeyboardButton("Для пользователей", callback_data='users'))\
     .add(InlineKeyboardButton("Для партнеров", callback_data='partners'))
+inl_book_menu = InlineKeyboardMarkup().add(InlineKeyboardButton("Отменить бронирование",
+                                                                callback_data='cancel')).add(inl_back)
 
 
 def add_buttons(kb, length):

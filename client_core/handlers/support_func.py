@@ -33,7 +33,7 @@ async def add_booking(callback_query: types.CallbackQuery, state: FSMContext, sl
     event = await get_event(event_id)
     bookings = await get_bookings(callback_query.from_user.id)
     data = await state.get_data()
-    if data['chosen_event'] in bookings:
+    if event_id in bookings:
         await callback_query.message.answer(text=i18n.t("text.already_booked"), reply_markup=kb.sub_default_btn)
     else:
         await book_event(callback_query.from_user.id, event_id, datetime.datetime.now(), slot_id)

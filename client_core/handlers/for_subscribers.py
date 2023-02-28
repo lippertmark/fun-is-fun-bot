@@ -7,7 +7,7 @@ from aiogram import types, Dispatcher
 
 from load import bot
 from db.utils import get_subscription_settings, get_club_name, get_all_events, \
-    get_event, get_bookings, get_subscribes, unsubscribe, book_slot, get_slots, get_club_info
+    get_event, get_bookings, get_subscribes, unsubscribe, book_slot, get_slots, get_club_info, cancel_booking
 import client_core.keybords as kb
 from client_core.handlers.support_func import add_booking, is_swipeable, get_link, delete_all_messages
 from client_core.handlers.start import process_cancel_command
@@ -24,6 +24,7 @@ class SubscribersStates(StatesGroup):
     qa = State()
     videochat = State()
     slot = State()
+    book_menu = State()
 
 
 # , lambda c: get_subscribes(c.from_user.id)
@@ -213,9 +214,12 @@ async def my_bookings(message: types.Message, state: FSMContext):
     if bookings:
         async with state.proxy() as data:
             data['booked_page'] = 0
-            data['msg'].append(message.message_id)
-            msg = await message.answer(i18n.t("text.bookings"), reply_markup=kb.get_all_bookings(bookings, 0))
-            data['msg'].append(msg.message_id)
+            if message.message_id not in data['msg']:
+                data['msg'].append(message.message_id)
+                msg = await message.answer(i18n.t("text.bookings"), reply_markup=kb.get_all_bookings(bookings, 0))
+                data['msg'].append(msg.message_id)
+            else:
+                await message.edit_text(i18n.t("text.bookings"), reply_markup=kb.get_all_bookings(bookings, 0))
         await SubscribersStates.booked_event.set()
     else:
         await message.answer(i18n.t("text.no_bookings"), reply_markup=None)
@@ -249,8 +253,21 @@ async def booked_event(callback_query: types.CallbackQuery, state: FSMContext):
                                                     link=link),
                                         chat_id=callback_query.from_user.id,
                                         message_id=callback_query.message.message_id,
-                                        reply_markup=None)
-            await state.reset_state(with_data=False)
+                                        reply_markup=kb.inl_book_menu)
+            await SubscribersStates.book_menu.set()
+
+
+async def book_menu(callback_query: types.CallbackQuery, state: FSMContext):
+    code = callback_query.data
+    if code == 'back':
+        callback_query.message.from_user.id = callback_query.from_user.id
+        await my_bookings(callback_query.message, state)
+    else:
+        await callback_query.message.edit_text(text="Ты отменил бронирование на это мероприятие",
+                                               reply_markup=None)
+        async with state.proxy() as data:
+            await cancel_booking(callback_query.from_user.id, data['booked_event'])
+        await state.reset_state(with_data=False)
 
 
 async def delete_sub(callback_query: types.CallbackQuery, state: FSMContext):
@@ -339,6 +356,7 @@ def reg_for_subs_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(slots, state=SubscribersStates.slot)
     dp.register_message_handler(my_bookings, Text(equals="Мои бронирования", ignore_case=True))
     dp.register_callback_query_handler(booked_event, state=SubscribersStates.booked_event)
+    dp.register_callback_query_handler(book_menu, state=SubscribersStates.book_menu)
     dp.register_callback_query_handler(delete_sub, state=SubscribersStates.delete_sub)
     dp.register_message_handler(help_btn, Text(equals="Помощь", ignore_case=True))
     dp.register_callback_query_handler(support, state=SubscribersStates.support)

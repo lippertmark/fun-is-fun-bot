@@ -302,6 +302,21 @@ async def book_event(user_id, event_id, booking_datetime, slot_id):
         return False
 
 
+async def cancel_booking(user_id, booking_id):
+    session = sm(bind=engine)
+    try:
+        await session.execute(delete(BookingEvent).where(BookingEvent.event_id == int(booking_id),
+                                                         BookingEvent.user_id == int(user_id)))
+
+        slots = await session.execute(select(Slots).where(Slots.user_id == int(user_id),
+                                                          Slots.event_id == int(booking_id)))
+        slot = slots.scalars().one()
+        slot.user_id = 0
+        await session.commit()
+    except (ProgrammingError, ConnectionRefusedError):
+        return False
+
+
 async def get_chatId(event_id):
     session = sm(bind=engine)
     async with session:
@@ -319,9 +334,7 @@ async def unsubscribe(user_id, club_id):
         await session.execute(delete(Subscription).where(Subscription.user == int(user_id),
                                                          Subscription.sport_club == int(club_id)))
         await session.commit()
-        print("Пользователь ", user_id, "отписался от ", club_id)
     except (ProgrammingError, ConnectionRefusedError):
-        print("FAIL")
         return False
 
 
@@ -370,6 +383,7 @@ async def get_subscriptions():
 
 async def get_slot(user_id):
     session = sm(bind=engine)
+    response = []
     async with session:
         try:
             slots = await session.execute(select(Slots).where(Slots.user_id == int(user_id)))
