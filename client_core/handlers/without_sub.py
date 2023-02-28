@@ -4,10 +4,10 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
 from aiogram.types import LabeledPrice, ContentType
-from aiogram import types
+from aiogram import types, Dispatcher
 import i18n
 
-from load import dp, bot, PAYMENT_TOKEN
+from load import bot, PAYMENT_TOKEN
 import client_core.keybords as kb
 from db.utils import get_sport_types, get_clubs, get_club_info, get_subscribes, add_subscription
 from client_core.handlers.support_func import delete_last_message, is_swipeable, delete_all_messages
@@ -23,7 +23,6 @@ class ClientStates(StatesGroup):
     buy_sub = State()
 
 
-@dp.message_handler(Text(equals="Найти клуб️", ignore_case=True))
 async def find_club(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['msg'].append(message.message_id)
@@ -40,7 +39,6 @@ async def find_club(message: types.Message, state: FSMContext):
     await ClientStates.find_club.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=ClientStates.find_club)
 async def teams_list(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     await bot.answer_callback_query(callback_query.id)
@@ -70,7 +68,6 @@ async def teams_list(callback_query: types.CallbackQuery, state: FSMContext):
     await ClientStates.club_info.set()
 
 
-@dp.message_handler(state=ClientStates.find_club)
 async def search(message: types.Message, state: FSMContext):
     club_info = await get_club_info(message.text)
     if club_info:
@@ -89,7 +86,6 @@ async def search(message: types.Message, state: FSMContext):
         await message.answer(i18n.t("text.club_not_exist", club=message.text))
 
 
-@dp.callback_query_handler(lambda c: c.data, state=ClientStates.club_info)
 async def the_team(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     await bot.answer_callback_query(callback_query.id)
@@ -123,7 +119,6 @@ async def the_team(callback_query: types.CallbackQuery, state: FSMContext):
             await ClientStates.club_page.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=ClientStates.club_page)
 async def club_page(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     await bot.answer_callback_query(callback_query.id)
@@ -150,7 +145,6 @@ async def club_page(callback_query: types.CallbackQuery, state: FSMContext):
         await ClientStates.buy_sub.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=ClientStates.buy_sub)
 async def buy_sub(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     await bot.answer_callback_query(callback_query.id)
@@ -188,12 +182,10 @@ async def buy_sub(callback_query: types.CallbackQuery, state: FSMContext):
                                             reply_markup=kb.InlineKeyboardMarkup().add(kb.inl_back))
 
 
-@dp.pre_checkout_query_handler(lambda query: True, state=ClientStates.buy_sub)
 async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 
-@dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT, state=ClientStates.buy_sub)
 async def process_successful_payment(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         club_info = await get_club_info(data['club'])
@@ -205,3 +197,14 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
         await add_subscription(message.from_user.id, data["sub_type"], int(data['club']), data["subs"], datetime.datetime.now())
     await state.reset_state(with_data=False)
 
+
+def reg_without_sub_handlers(dp: Dispatcher):
+    dp.register_message_handler(find_club, Text(equals="Найти клуб️", ignore_case=True))
+    dp.register_callback_query_handler(teams_list, state=ClientStates.find_club)
+    dp.register_message_handler(search, state=ClientStates.find_club)
+    dp.register_callback_query_handler(the_team, state=ClientStates.club_info)
+    dp.register_callback_query_handler(club_page, state=ClientStates.club_page)
+    dp.register_callback_query_handler(buy_sub, state=ClientStates.buy_sub)
+    dp.register_pre_checkout_query_handler(process_pre_checkout_query, lambda query: True, state=ClientStates.buy_sub)
+    dp.register_message_handler(process_successful_payment, content_types=ContentType.SUCCESSFUL_PAYMENT,
+                                state=ClientStates.buy_sub)

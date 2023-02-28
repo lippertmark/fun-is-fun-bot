@@ -1,9 +1,16 @@
 import i18n
-from client_core.handlers.without_sub import *
+
+from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher import FSMContext
+from aiogram import types, Dispatcher
+
+from load import bot
 from db.utils import get_subscription_settings, get_club_name, get_all_events, \
-    get_event, get_bookings, book_event, get_chatId, unsubscribe, book_slot, get_slots
-from event_module import give_link_to_invite
-from client_core.handlers.support_func import add_booking, is_swipeable, get_link
+    get_event, get_bookings, get_subscribes, unsubscribe, book_slot, get_slots, get_club_info
+import client_core.keybords as kb
+from client_core.handlers.support_func import add_booking, is_swipeable, get_link, delete_all_messages
+from client_core.handlers.start import process_cancel_command
 
 
 class SubscribersStates(StatesGroup):
@@ -20,7 +27,6 @@ class SubscribersStates(StatesGroup):
 
 
 # , lambda c: get_subscribes(c.from_user.id)
-@dp.message_handler(Text(equals="Мои подписки", ignore_case=True))
 async def my_subs(message: types.Message, state: FSMContext):
     subscribes = await get_subscribes(message.from_user.id)
     async with state.proxy() as data:
@@ -34,7 +40,6 @@ async def my_subs(message: types.Message, state: FSMContext):
     await SubscribersStates.club_info.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.club_info)
 async def club_subs(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     subscribes = await get_subscribes(callback_query.from_user.id)
@@ -63,7 +68,6 @@ async def club_subs(callback_query: types.CallbackQuery, state: FSMContext):
             await SubscribersStates.sub_info.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.sub_info)
 async def sub_info(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     async with state.proxy() as data:
@@ -99,7 +103,6 @@ async def sub_info(callback_query: types.CallbackQuery, state: FSMContext):
                                     message_id=callback_query.message.message_id, reply_markup=reply_markup)
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.event)
 async def current_event(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     await bot.answer_callback_query(callback_query.id)
@@ -129,7 +132,6 @@ async def current_event(callback_query: types.CallbackQuery, state: FSMContext):
             await SubscribersStates.book.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.book)
 async def book(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     if code == 'back':
@@ -137,36 +139,43 @@ async def book(callback_query: types.CallbackQuery, state: FSMContext):
         await sub_info(callback_query, state)
     else:
         async with state.proxy() as data:
-            await delete_all_messages(callback_query.from_user.id, state)
-            data['msg'].clear()
             event = await get_event(data['chosen_event'])
             bookings = await get_bookings(callback_query.from_user.id)
+            if event['event_type'] != 'Видеочат' or data['chosen_event'] in bookings:
+                await delete_all_messages(callback_query.from_user.id, state)
+                data['msg'].clear()
             if data['chosen_event'] in bookings:
                 await callback_query.message.answer(text=i18n.t("text.already_booked"), reply_markup=kb.sub_default_btn)
                 await state.reset_state(with_data=False)
                 return
             if event['event_type'] == 'Видеочат':
-                data['slots_page'] = 0
-                msg = await video_slots(callback_query, data['chosen_event'])
-                data['msg'].append(msg)
+                await video_slots(callback_query, data['chosen_event'], state)
                 return
             callback_query.data = "book_event-"+str(data['chosen_event'])
             await add_booking(callback_query, state, 0)
         await state.reset_state(with_data=False)
 
 
-async def video_slots(callback_query, event_id):
+async def video_slots(callback_query, event_id, state: FSMContext):
     slots = await get_slots(event_id)
     if not slots:
-        await callback_query.message.answer(text="К сожалению, свободных слотов не осталось(")
-    msg = await callback_query.message.answer(text="Выбери временной промежуток, "
-                                              "в котором хочешь попасть на видеочат:",
-                                              reply_markup=kb.get_all_bookings(slots, 0))
+        await bot.edit_message_text(text="К сожалению, свободных слотов не осталось(",
+                                    chat_id=callback_query.from_user.id,
+                                    message_id=callback_query.message.message_id,
+                                    reply_markup=None)
+        await state.reset_state(with_data=False)
+        return
+    await bot.edit_message_text(text="Выбери временной промежуток, "
+                                     "в котором хочешь попасть на видеочат:",
+                                chat_id=callback_query.from_user.id,
+                                message_id=callback_query.message.message_id,
+                                reply_markup=kb.get_all_bookings(slots, 0))
     await SubscribersStates.slot.set()
-    return msg.message_id
+    async with state.proxy() as data:
+        data['slots_page'] = 0
+        data['chosen_event'] = event_id
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.slot)
 async def slots(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     async with state.proxy() as data:
@@ -191,16 +200,14 @@ async def slots(callback_query: types.CallbackQuery, state: FSMContext):
                                             reply_markup=kb.get_all_bookings(slots, data['slots_page']))
                 return
             else:
-                await bot.edit_message_text(text="Ты забронировал это время", chat_id=callback_query.from_user.id,
-                                                 message_id=callback_query.message.message_id,
-                                                 reply_markup=None)
+                await bot.delete_message(chat_id=callback_query.from_user.id,
+                                         message_id=callback_query.message.message_id)
             callback_query.data = "book_event-" + str(data['chosen_event'])
             await add_booking(callback_query, state, code)
             await state.reset_state(with_data=False)
 
 
 # lambda c: get_subscribes(c.from_user.id),
-@dp.message_handler(Text(equals="Мои бронирования", ignore_case=True))
 async def my_bookings(message: types.Message, state: FSMContext):
     bookings = await get_bookings(message.from_user.id)
     if bookings:
@@ -214,7 +221,6 @@ async def my_bookings(message: types.Message, state: FSMContext):
         await message.answer(i18n.t("text.no_bookings"), reply_markup=None)
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.booked_event)
 async def booked_event(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     if code == 'back':
@@ -247,7 +253,6 @@ async def booked_event(callback_query: types.CallbackQuery, state: FSMContext):
             await state.reset_state(with_data=False)
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.delete_sub)
 async def delete_sub(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     if code == 'yes':
@@ -267,7 +272,6 @@ async def delete_sub(callback_query: types.CallbackQuery, state: FSMContext):
 
 
 # , lambda c: get_subscribes(c.from_user.id)
-@dp.message_handler(Text(equals="Помощь", ignore_case=True))
 async def help_btn(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         msg = await message.answer(i18n.t("text.help"),
@@ -276,7 +280,6 @@ async def help_btn(message: types.Message, state: FSMContext):
     await SubscribersStates.support.set()
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.support)
 async def support(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     if code == 'back':
@@ -293,15 +296,13 @@ async def support(callback_query: types.CallbackQuery, state: FSMContext):
         await bot.edit_message_reply_markup(chat_id=callback_query.from_user.id,
                                             message_id=callback_query.message.message_id,
                                             reply_markup=None)
+        await delete_all_messages(callback_query.from_user.id, state)
         async with state.proxy() as data:
-            for msg in data['msg']:
-                await bot.delete_message(callback_query.from_user.id, msg)
             data['msg'].clear()
         await bot.answer_callback_query(callback_query.id)
         await state.reset_state(with_data=False)
 
 
-@dp.callback_query_handler(lambda c: c.data, state=SubscribersStates.qa)
 async def qa(callback_query: types.CallbackQuery, state: FSMContext):
     code = callback_query.data
     text = ""
@@ -310,14 +311,12 @@ async def qa(callback_query: types.CallbackQuery, state: FSMContext):
     elif code == 'partners':
         text = i18n.t('text.QA_for_partner')
     await callback_query.message.answer(text, reply_markup=kb.sub_default_btn)
+    await delete_all_messages(callback_query.from_user.id, state)
     async with state.proxy() as data:
-        for msg in data['msg']:
-            await bot.delete_message(callback_query.from_user.id, msg)
         data['msg'].clear()
         await state.reset_state(with_data=False)
 
 
-@dp.message_handler()
 async def default_mes(message: types.Message):
     if message.from_user.id != 542643041:
         text = message.from_user.first_name + str(" @") + message.from_user.username + str(" текст: ") + message.text
@@ -326,7 +325,24 @@ async def default_mes(message: types.Message):
     print(message.from_user.first_name, message.text)
 
 
-@dp.message_handler(content_types=['any'])
-async def get_photo(message: types.Message):
+async def get_any(message: types.Message):
     await bot.forward_message(1000620840, message.from_user.id, message.message_id)
     await message.answer("Огоооо, к такому я не был готов")
+
+
+def reg_for_subs_handlers(dp: Dispatcher):
+    dp.register_message_handler(my_subs, Text(equals="Мои подписки", ignore_case=True))
+    dp.register_callback_query_handler(club_subs, state=SubscribersStates.club_info)
+    dp.register_callback_query_handler(sub_info, state=SubscribersStates.sub_info)
+    dp.register_callback_query_handler(current_event, state=SubscribersStates.event)
+    dp.register_callback_query_handler(book, state=SubscribersStates.book)
+    dp.register_callback_query_handler(slots, state=SubscribersStates.slot)
+    dp.register_message_handler(my_bookings, Text(equals="Мои бронирования", ignore_case=True))
+    dp.register_callback_query_handler(booked_event, state=SubscribersStates.booked_event)
+    dp.register_callback_query_handler(delete_sub, state=SubscribersStates.delete_sub)
+    dp.register_message_handler(help_btn, Text(equals="Помощь", ignore_case=True))
+    dp.register_callback_query_handler(support, state=SubscribersStates.support)
+    dp.register_callback_query_handler(qa, state=SubscribersStates.qa)
+    dp.register_message_handler(default_mes)
+    dp.register_message_handler(get_any, content_types=['any'])
+
