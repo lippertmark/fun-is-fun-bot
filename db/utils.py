@@ -345,7 +345,8 @@ async def get_slots(event_id):
             response = {}
             slots = await session.execute(select(Slots).where(Slots.event_id == int(event_id), Slots.user_id == 0))
             for slot in slots:
-                response[slot.Slots.id] = [slot.Slots.start_time.strftime("%H:%M"), slot.Slots.end_time.strftime("%H:%M")]
+                if slot.Slots.start_time > datetime.datetime.now():
+                    response[slot.Slots.id] = [slot.Slots.start_time.strftime("%H:%M"), slot.Slots.end_time.strftime("%H:%M")]
         except (ProgrammingError, ConnectionRefusedError):
             return False
     return response
